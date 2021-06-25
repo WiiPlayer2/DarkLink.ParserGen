@@ -2,6 +2,7 @@
 using Microsoft.CodeAnalysis.Text;
 using System;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace DarkLink.ParserGen
@@ -13,16 +14,15 @@ namespace DarkLink.ParserGen
 
         public void Execute(GeneratorExecutionContext context)
         {
-            var config = new Config(
-                new("Testing", "Test", string.Empty),
-                new(new TokenInfo[]
-                {
-                    new("Whitespace", "\\w"),
-                    new("Hello", "hello"),
-                    new("World", "world"),
-                }));
+            foreach (var additionalText in context.AdditionalFiles
+                .Where(o => string.Equals(Path.GetExtension(o.Path), ".parser", StringComparison.InvariantCultureIgnoreCase)))
+            {
+                var config = ConfigParser.Parse(context, additionalText);
+                if (config is null)
+                    continue;
 
-            Generate(context, config);
+                Generate(context, config);
+            }
         }
 
         public void Initialize(GeneratorInitializationContext context)
