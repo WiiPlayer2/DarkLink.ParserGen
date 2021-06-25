@@ -8,6 +8,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Testing.parser" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AdditionalFiles Include="Testing.parser" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\DarkLink.ParserGen\DarkLink.ParserGen.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
   </ItemGroup>
 

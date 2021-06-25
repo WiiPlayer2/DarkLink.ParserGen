@@ -1,0 +1,7 @@
+﻿#namespace DemoApp
+#modifier public
+
+[Lexer]
+Whitespace=/\w/
+Hello=/hello/
+World=/world/
