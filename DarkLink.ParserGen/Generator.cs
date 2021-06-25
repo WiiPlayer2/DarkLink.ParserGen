@@ -78,6 +78,12 @@ namespace {config.Type.Namespace}
                 writer.WriteLine($@"
         }}
 
+        public {config.Type.Name}Lexer(string input)
+            : this(new StringReader(input)) {{ }}
+
+        public {config.Type.Name}Lexer(Stream stream)
+            : this(new StreamReader(stream)) {{ }}
+
         public {config.Type.Name}Lexer(TextReader reader)
         {{
             this.reader = reader;
@@ -92,7 +98,9 @@ namespace {config.Type.Namespace}
 
             var (type, match) = tokenRules
                 .Select(kv => (Type: kv.Key, Match: kv.Value.Match(input, currentIndex)))
-                .FirstOrDefault(tuple => tuple.Match is not null);
+                .Where(tuple => tuple.Match.Success && tuple.Match.Length > 0)
+                .OrderBy(tuple => tuple.Match.Index)
+                .FirstOrDefault();
 
             if (match is null)
             {{
@@ -126,6 +134,29 @@ namespace {config.Type.Namespace}
         {{
             input = null;
             reader.Dispose();
+        }}
+
+        public static IEnumerable<{config.Type.Name}Token> Lex(string input)
+            => Lex(new StringReader(input));
+
+        public static IEnumerable<{config.Type.Name}Token> Lex(Stream stream)
+            => Lex(new StreamReader(stream));
+
+        public static IEnumerable<{config.Type.Name}Token> Lex(TextReader reader)
+            => new Enumerable(() => new {config.Type.Name}Lexer(reader));
+
+        private class Enumerable : IEnumerable<{config.Type.Name}Token>
+        {{
+            private readonly Func<IEnumerator<{config.Type.Name}Token>> enumeratorFunc;
+
+            public Enumerable(Func<IEnumerator<{config.Type.Name}Token>> enumeratorFunc)
+            {{
+                this.enumeratorFunc = enumeratorFunc;
+            }}
+
+            public IEnumerator<{config.Type.Name}Token> GetEnumerator() => enumeratorFunc();
+
+            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
         }}
     }}
 }}

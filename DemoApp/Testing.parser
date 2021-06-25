@@ -1,6 +1,6 @@
 ﻿#namespace DemoApp
 #modifier public
 
-Whitespace=/\w/
+Whitespace=/\s/
 Hello=/hello/
 World=/world/
