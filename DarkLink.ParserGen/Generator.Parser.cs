@@ -8,16 +8,16 @@ namespace DarkLink.ParserGen
 {
     partial class Generator
     {
-        private List<(string Symbol, string Token, IReadOnlyList<ParserRuleTarget> Targets)> ConstructLLParsingTable(Config config)
+        private List<(string Symbol, string[] Tokens, IReadOnlyList<ParserRuleTarget> Targets)> ConstructLLParsingTable(Config config)
         {
             // k=1 for now
 
-            var firsts = new Dictionary<ParserRuleTarget, HashSet<string>>();
+            var firsts = new Dictionary<ParserRuleTarget[], HashSet<string>>(ArrayComparer<ParserRuleTarget>.Instance);
             foreach (var token in config.Lexer.Tokens)
-                firsts[new(token.Name, true)] = new(new[] { token.Name });
+                firsts[new ParserRuleTarget[] { new(token.Name, true) }] = new(new[] { token.Name });
             foreach (var rule in config.Parser.Rules)
             {
-                var key = new ParserRuleTarget(rule.Name, false);
+                var key = new ParserRuleTarget[] { new(rule.Name, false) };
                 if (!firsts.TryGetValue(key, out var set))
                 {
                     set = new();
@@ -29,7 +29,7 @@ namespace DarkLink.ParserGen
                     set.Add("EMPTY");
                 }
             }
-            firsts[new("EMPTY", true)] = new(new[] { "EMPTY" });
+            firsts[new ParserRuleTarget[] { new("EMPTY", true) }] = new(new[] { "EMPTY" });
 
             bool changed;
             do
@@ -38,13 +38,13 @@ namespace DarkLink.ParserGen
 
                 foreach (var rule in config.Parser.Rules)
                 {
-                    var key = new ParserRuleTarget(rule.Name, false);
+                    var key = new[] { new ParserRuleTarget(rule.Name, false) };
                     for (var i = 0; i < rule.Targets.Count; i++)
                     {
                         var hasEmpty = true;
                         for (var j = 0; j < i; j++)
                         {
-                            if (!firsts[rule.Targets[j]].Contains("EMPTY"))
+                            if (!firsts[new[] { rule.Targets[j] }].Contains("EMPTY"))
                             {
                                 hasEmpty = false;
                                 break;
@@ -54,13 +54,13 @@ namespace DarkLink.ParserGen
                         if (!hasEmpty)
                             continue;
 
-                        foreach (var token in firsts[rule.Targets[i]])
+                        foreach (var token in firsts[new[] { rule.Targets[i] }])
                         {
                             changed |= firsts[key].Add(token);
                         }
                     }
 
-                    if (rule.Targets.All(target => firsts[target].Contains("EMPTY")))
+                    if (rule.Targets.All(target => firsts[new[] { target }].Contains("EMPTY")))
                         changed |= firsts[key].Add("EMPTY");
                 }
             }
@@ -84,14 +84,14 @@ namespace DarkLink.ParserGen
 
                         if (i < rule.Targets.Count - 1)
                         {
-                            foreach (var token in firsts[rule.Targets[i + 1]])
+                            foreach (var token in firsts[new[] { rule.Targets[i + 1] }])
                             {
                                 if (token == "EMPTY")
                                     continue;
                                 changed |= follows[rule.Targets[i].Name].Add(token);
                             }
 
-                            if (firsts[rule.Targets[i + 1]].Contains("EMPTY"))
+                            if (firsts[new[] { rule.Targets[i + 1] }].Contains("EMPTY"))
                             {
                                 foreach (var token in follows[rule.Name])
                                     changed |= follows[rule.Targets[i].Name].Add(token);
@@ -107,21 +107,21 @@ namespace DarkLink.ParserGen
             }
             while (changed);
 
-            var map = new List<(string Symbol, string Token, IReadOnlyList<ParserRuleTarget> Targets)>();
+            var map = new List<(string Symbol, string[] Tokens, IReadOnlyList<ParserRuleTarget> Targets)>();
             foreach (var rule in config.Parser.Rules)
             {
-                foreach (var token in firsts[rule.Targets[0]])
+                foreach (var token in firsts[new[] { rule.Targets[0] }])
                 {
                     if (token == "EMPTY")
                     {
                         foreach (var followToken in follows[rule.Name])
                         {
-                            map.Add((rule.Name, followToken, rule.Targets));
+                            map.Add((rule.Name, new[] { followToken }, rule.Targets));
                         }
                     }
                     else
                     {
-                        map.Add((rule.Name, token, rule.Targets));
+                        map.Add((rule.Name, new[] { token }, rule.Targets));
                     }
                 }
             }
@@ -181,14 +181,14 @@ namespace DarkLink.ParserGen
                     => obj?.Aggregate(0, (acc, curr) => acc ^ curr.GetHashCode()) ?? 0;
             }}
 
-            private readonly RuleTable ruleTable = new();
+            private static readonly RuleTable ruleTable = new();
 
-            public Parser()
+            static Parser()
             {{");
 
-            foreach (var (symbol, token, targets) in map)
+            foreach (var (symbol, tokens, targets) in map)
             {
-                writer.WriteLine($"ruleTable[SymbolType.{symbol}, new[]{{ TokenType.{token} }}] = new(SymbolType.{symbol}, new Symbol[] {{ {string.Join(", ", targets.Select(o => o.IsToken ? $"new TokenSymbol(TokenType.{o.Name})" : $"new RuleSymbol(SymbolType.{o.Name})"))} }});");
+                writer.WriteLine($"ruleTable[SymbolType.{symbol}, new[]{{ {string.Join(", ", tokens.Select(o => $"TokenType.{o}"))} }}] = new(SymbolType.{symbol}, new Symbol[] {{ {string.Join(", ", targets.Select(o => o.IsToken ? $"new TokenSymbol(TokenType.{o.Name})" : $"new RuleSymbol(SymbolType.{o.Name})"))} }});");
             }
 
             writer.WriteLine($@"
@@ -314,6 +314,21 @@ namespace DarkLink.ParserGen
             writer.WriteLine($@"
         }}
 ");
+        }
+
+        private class ArrayComparer<T> : IEqualityComparer<T[]>
+        {
+            private ArrayComparer()
+            {
+            }
+
+            public static ArrayComparer<T> Instance { get; } = new ArrayComparer<T>();
+
+            public bool Equals(T[]? x, T[]? y)
+                => x?.SequenceEqual(y) ?? false;
+
+            public int GetHashCode(T[]? obj)
+                => obj?.Aggregate(0, (acc, curr) => acc ^ curr?.GetHashCode() ?? 0) ?? 0;
         }
     }
 }
