@@ -23,7 +23,7 @@ namespace DarkLink.ParserGen
 
     record ParserRuleTarget(string Name, bool IsToken);
 
-    record ParserRule(string Name, IReadOnlyList<IReadOnlyList<ParserRuleTarget>> Targets);
+    record ParserRule(string Name, IReadOnlyList<ParserRuleTarget> Targets);
 }
 
 namespace System.Runtime.CompilerServices

@@ -1,14 +1,79 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace DarkLink.ParserGen
 {
     partial class Generator
     {
+        private List<(string Symbol, string Token, IReadOnlyList<ParserRuleTarget> Targets)> ConstructLLParsingTable(Config config, int k = 1)
+        {
+            // Ignore k for now, epsilon is also ignored for now
+
+            var firsts = new Dictionary<ParserRuleTarget, HashSet<string>>();
+            foreach (var token in config.Lexer.Tokens)
+                firsts[new(token.Name, true)] = new(new[] { token.Name });
+            foreach (var rule in config.Parser.Rules)
+                firsts[new(rule.Name, false)] = new();
+
+            bool changed;
+            do
+            {
+                changed = false;
+
+                foreach (var rule in config.Parser.Rules)
+                {
+                    foreach (var token in firsts[rule.Targets[0]])
+                    {
+                        changed |= firsts[new(rule.Name, false)].Add(token);
+                    }
+                }
+            }
+            while (changed);
+
+            var follows = new Dictionary<string, HashSet<string>>();
+            foreach (var rule in config.Parser.Rules)
+                follows[rule.Name] = new();
+
+            follows[config.Parser.Start].Add("END");
+
+            do
+            {
+                changed = false;
+                foreach (var rule in config.Parser.Rules)
+                {
+                    for (var i = 0; i < rule.Targets.Count - 1; i++)
+                    {
+                        if (rule.Targets[i].IsToken)
+                            continue;
+
+                        foreach (var token in firsts[rule.Targets[i + 1]])
+                        {
+                            changed |= follows[rule.Targets[i].Name].Add(token);
+                        }
+                    }
+                }
+            }
+            while (changed);
+
+            var map = new List<(string Symbol, string Token, IReadOnlyList<ParserRuleTarget> Targets)>();
+            foreach (var rule in config.Parser.Rules)
+            {
+                foreach (var token in firsts[rule.Targets[0]])
+                {
+                    map.Add((rule.Name, token, rule.Targets));
+                }
+            }
+
+            return map;
+        }
+
         private void GenerateParser(TextWriter writer, Config config)
         {
+            var map = ConstructLLParsingTable(config);
+
             writer.WriteLine($@"
         public class Parser
         {{
@@ -58,6 +123,17 @@ namespace DarkLink.ParserGen
             record Rule(SymbolType OfType, IReadOnlyList<Symbol> Symbols);
 
             private readonly RuleTable ruleTable = new();
+
+            public Parser()
+            {{");
+
+            foreach (var (symbol, token, targets) in map)
+            {
+                writer.WriteLine($"ruleTable[SymbolType.{symbol}, new[]{{ TokenType.{token} }}] = new(SymbolType.{symbol}, new Symbol[] {{ {string.Join(", ", targets.Select(o => o.IsToken ? $"new TokenSymbol(TokenType.{o.Name})" : $"new RuleSymbol(SymbolType.{o.Name})"))} }});");
+            }
+
+            writer.WriteLine($@"
+            }}
 
             public IEnumerable Parse(IEnumerable<Token> tokens)
             {{

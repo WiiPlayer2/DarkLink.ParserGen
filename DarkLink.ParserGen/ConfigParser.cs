@@ -108,10 +108,7 @@ namespace DarkLink.ParserGen
                 new(
                     start,
                     rules
-                        .ToLookup(o => o.Name)
-                        .Select(grouping => new ParserRule(grouping.Key, grouping
-                            .Select(tuple => (IReadOnlyList<ParserRuleTarget>)tuple.Targets.ToList())
-                            .ToList()))
+                        .Select(tuple => new ParserRule(tuple.Name, tuple.Targets))
                         .ToList()));
         }
     }
