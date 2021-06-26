@@ -57,6 +57,8 @@ namespace {config.Type.Namespace}
                 GenerateTokenType(writer, config);
                 GenerateToken(writer);
                 GenerateLexer(writer, config);
+                GenerateSymbolType(writer, config);
+                GenerateParser(writer, config);
 
                 writer.WriteLine($@"
     }}

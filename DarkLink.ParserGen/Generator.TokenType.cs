@@ -18,6 +18,7 @@ namespace DarkLink.ParserGen
             {tokenInfo.Name},");
 
             writer.WriteLine($@"
+            END,
             UNDEFINED,
         }}
 ");
