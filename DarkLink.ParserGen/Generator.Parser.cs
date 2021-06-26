@@ -135,6 +135,15 @@ namespace DarkLink.ParserGen
             writer.WriteLine($@"
             }}
 
+            public SymbolNode Parse(string input)
+                => Parse(Lexer.Lex(input));
+
+            public SymbolNode Parse(TextReader reader)
+                => Parse(Lexer.Lex(reader));
+
+            public SymbolNode Parse(Stream stream)
+                => Parse(Lexer.Lex(stream));
+
             public SymbolNode Parse(IEnumerable<Token> tokens)
             {{
                 IEnumerable SyntacticAnalysis()
