@@ -10,7 +10,7 @@ namespace DemoApp
     {
         private static void Main(string[] args)
         {
-            var content = @"the bat eats a cat";
+            var content = @"id+id";
             var parser = new Testing.Parser();
             var rootNode = parser.Parse(content);
 

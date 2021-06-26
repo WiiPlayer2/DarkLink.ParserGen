@@ -19,6 +19,7 @@ namespace DarkLink.ParserGen
 
             writer.WriteLine($@"
             END,
+            EMPTY,
             UNDEFINED,
         }}
 ");

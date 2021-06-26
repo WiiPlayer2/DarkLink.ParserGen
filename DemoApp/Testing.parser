@@ -1,12 +1,18 @@
 ﻿#namespace DemoApp
 #modifier public
-#start Sentence
+#start E
 
-WS = /\s/
-Det = /(the|a)/
-Noun = /(cat|bat)/
-Verb = "eats"
+PLUS = "+"
+ASTERISK = "*"
+L_BRACKET = "("
+R_BRACKET = ")"
+ID = "id"
 
-Sentence -> NounPhrase #WS VerbPhrase;
-NounPhrase -> #Det #WS #Noun;
-VerbPhrase -> #Verb #WS NounPhrase;
+E -> T E2;
+E2 -> #PLUS T E2;
+E2 -> #EMPTY;
+T -> F T2;
+T2 -> #ASTERISK F T2;
+T2 -> #EMPTY;
+F -> #ID;
+F -> #L_BRACKET E #R_BRACKET;
