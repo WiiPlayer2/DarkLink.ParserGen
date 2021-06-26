@@ -77,11 +77,13 @@ namespace DarkLink.ParserGen
             writer.WriteLine($@"
         public class Parser
         {{
-            record Symbol();
+            public record Symbol();
 
-            record RuleSymbol(SymbolType Type) : Symbol;
+            public record RuleSymbol(SymbolType Type) : Symbol;
 
-            record TokenSymbol(TokenType Type) : Symbol;
+            public record TokenSymbol(TokenType Type) : Symbol;
+
+            public record Rule(SymbolType Type, IReadOnlyList<Symbol> Symbols);
 
             class RuleTable
             {{
@@ -120,8 +122,6 @@ namespace DarkLink.ParserGen
                     => obj?.Aggregate(0, (acc, curr) => acc ^ curr.GetHashCode()) ?? 0;
             }}
 
-            record Rule(SymbolType OfType, IReadOnlyList<Symbol> Symbols);
-
             private readonly RuleTable ruleTable = new();
 
             public Parser()
@@ -135,55 +135,95 @@ namespace DarkLink.ParserGen
             writer.WriteLine($@"
             }}
 
-            public IEnumerable Parse(IEnumerable<Token> tokens)
+            public SymbolNode Parse(IEnumerable<Token> tokens)
             {{
-                var endSymbol = new TokenSymbol(TokenType.END);
-                var stack = new Stack<Symbol>();
-                stack.Push(endSymbol);
-                stack.Push(new RuleSymbol(SymbolType.{config.Parser.Start}));
-
-                var tokenList = tokens
-                    .Concat(new []{{ new Token(TokenType.END, string.Empty, -1) }})
-                    .ToArray();
-
-                var position = 0;
-
-                while (stack.Count > 0)
+                IEnumerable SyntacticAnalysis()
                 {{
-                    var symbol = stack.Pop();
-                    var token = tokenList[position];
+                    var endSymbol = new TokenSymbol(TokenType.END);
+                    var stack = new Stack<Symbol>();
+                    stack.Push(endSymbol);
+                    stack.Push(new RuleSymbol(SymbolType.{config.Parser.Start}));
 
-                    if (symbol is TokenSymbol tokenSymbol)
+                    var tokenList = tokens
+                        .Concat(new []{{ new Token(TokenType.END, string.Empty, -1) }})
+                        .ToArray();
+
+                    var position = 0;
+
+                    while (stack.Count > 0)
                     {{
-                        if (tokenSymbol.Type == token.Type)
+                        var symbol = stack.Pop();
+                        var token = tokenList[position];
+
+                        if (symbol is TokenSymbol tokenSymbol)
                         {{
-                            position++;
-                            if (tokenSymbol == endSymbol)
-                                yield break;
+                            if (tokenSymbol.Type == token.Type)
+                            {{
+                                position++;
+                                if (tokenSymbol == endSymbol)
+                                    yield break;
+                                else
+                                    yield return token;
+                            }}
                             else
-                                yield return token;
+                            {{
+                                throw new Exception();
+                            }}
                         }}
-                        else
+                        else if (symbol is RuleSymbol ruleSymbol)
                         {{
-                            throw new Exception();
+                            var lookAheadTokens = tokenList
+                                .Select(o => o.Type)
+                                .ToArray()[position..(position + 1)];
+                            var rule = ruleTable[ruleSymbol.Type, lookAheadTokens];
+                            if (rule is null)
+                                throw new Exception();
+
+                            foreach(var s in rule.Symbols.Reverse())
+                                stack.Push(s);
+
+                            yield return rule;
                         }}
-                    }}
-                    else if (symbol is RuleSymbol ruleSymbol)
-                    {{
-                        var lookAheadTokens = tokenList
-                            .Select(o => o.Type)
-                            .ToArray()[position..(position + 1)];
-                        var rule = ruleTable[ruleSymbol.Type, lookAheadTokens];
-                        if (rule is null)
-                            throw new Exception();
-
-                        foreach(var s in rule.Symbols.Reverse())
-                            stack.Push(s);
-
-                        yield return rule;
                     }}
                 }}
+
+                var stack = new Stack<(Rule Rule, List<Node> Segments)>();
+                var parseStack = new Stack<object>(SyntacticAnalysis().Cast<object>().Reverse());
+
+                do
+                {{
+                    var obj = parseStack.Pop();
+                    if (obj is Token token)
+                        obj = new TokenNode(token);
+
+                    Console.WriteLine(obj);
+
+                    if (obj is Rule rule)
+                    {{
+                        stack.Push((rule, new()));
+                    }}
+                    else if (obj is Node dataNode)
+                    {{
+                        var node = stack.Peek();
+                        node.Segments.Add(dataNode);
+                        if (node.Segments.Count == node.Rule.Symbols.Count)
+                        {{
+                            stack.Pop();
+                            parseStack.Push(new SymbolNode(node.Rule.Type, node.Rule.Symbols.Zip(node.Segments, (l, r) => (l, r)).ToList()));
+                        }}
+                    }}
+                }}
+                while (stack.Count > 0);
+
+                var rootNode = (SymbolNode)parseStack.Pop();
+                return rootNode;
             }}
+
+            public record Node();
+
+            public record TokenNode(Token Token) : Node;
+
+            public record SymbolNode(SymbolType Type, IReadOnlyList<(Symbol Node, Node Segment)> Segments) : Node;
         }}
 ");
         }
