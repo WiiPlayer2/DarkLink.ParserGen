@@ -69,9 +69,55 @@ namespace {config.Type.Namespace}
             writer.WriteLine($@"
         public class Lexer : IEnumerator<Token>
         {{
+            private record RuleMatch(bool Success, int Index, string Value)
+            {{
+                public int Length => Value.Length;
+            }}
+
+            private abstract class Rule
+            {{
+                public abstract RuleMatch Match(string input, int startAt);
+            }}
+
+            private class RegexRule : Rule
+            {{
+                private readonly Regex regex;
+
+                public RegexRule(Regex regex)
+                {{
+                    this.regex = regex;
+                }}
+
+                public override RuleMatch Match(string input, int startAt)
+                {{
+                    var match = regex.Match(input, startAt);
+                    return new(match.Success, match.Index, match.Value);
+                }}
+            }}
+
+            private class LiteralRule : Rule
+            {{
+                private readonly string literal;
+
+                public LiteralRule(string literal)
+                {{
+                    this.literal = literal;
+                }}
+
+                public override RuleMatch Match(string input, int startAt)
+                {{
+                    var index = input.IndexOf(literal, startAt);
+
+                    if (index == -1)
+                        return new(false, index, string.Empty);
+                    else
+                        return new(true, index, literal);
+                }}
+            }}
+
             private readonly TextReader reader;
 
-            private static readonly Dictionary<TokenType, Regex> tokenRules = new();
+            private static readonly Dictionary<TokenType, Rule> tokenRules = new();
 
             private string? input;
 
@@ -81,7 +127,19 @@ namespace {config.Type.Namespace}
             {{");
             foreach (var token in config.Lexer.Tokens)
             {
-                writer.WriteLine($"tokenRules.Add(TokenType.{token.Name}, new Regex({Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(token.Regex, true)}));");
+                writer.Write($"tokenRules.Add(TokenType.{token.Name}, ");
+                switch (token.Rule)
+                {
+                    case RegexRule regexRule:
+                        writer.Write($"new RegexRule(new({Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(regexRule.Regex, true)}))");
+                        break;
+
+                    case LiteralRule literalRule:
+                        writer.Write($"new LiteralRule(new(\"{literalRule.Literal}\"))");
+                        break;
+                }
+
+                writer.WriteLine(");");
             }
             writer.WriteLine($@"
             }}

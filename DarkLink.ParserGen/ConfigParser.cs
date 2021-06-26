@@ -15,7 +15,7 @@ namespace DarkLink.ParserGen
 
         private static Regex namespaceRegex = new(@"#namespace (?<namespace>\w+)");
 
-        private static Regex tokenRegex = new(@"(?<type>\w+)\s*=\s*/(?<regex>[^/]+)/");
+        private static Regex tokenRegex = new(@"(?<type>\w+)\s*=\s*(/(?<regex>[^/]+)/|""(?<literal>[^""]+)""|'(?<literal>[^']+)')");
 
         public static Config? Parse(GeneratorExecutionContext context, AdditionalText additionalText)
         {
@@ -27,7 +27,7 @@ namespace DarkLink.ParserGen
 
             string? @namespace = null;
             string? modifier = null;
-            var tokens = new List<(string Type, string Regex)>();
+            var tokens = new List<(string Type, Rule Rule)>();
 
             foreach (var line in sourceText.Lines)
             {
@@ -53,7 +53,16 @@ namespace DarkLink.ParserGen
 
                 if ((match = tokenRegex.Match(lineText)).Success)
                 {
-                    tokens.Add((match.Groups["type"].Value, match.Groups["regex"].Value));
+                    var type = match.Groups["type"].Value;
+                    Rule? rule;
+                    if (match.Groups["regex"].Success)
+                        rule = new RegexRule(match.Groups["regex"].Value);
+                    else if (match.Groups["literal"].Success)
+                        rule = new LiteralRule(match.Groups["literal"].Value);
+                    else
+                        return null;
+
+                    tokens.Add((type, rule));
                 }
             }
 
@@ -63,7 +72,7 @@ namespace DarkLink.ParserGen
             var name = Path.GetFileNameWithoutExtension(additionalText.Path);
             return new(
                 new(@namespace, name, modifier ?? string.Empty),
-                new(tokens.Select(tuple => new TokenInfo(tuple.Type, tuple.Regex)).ToList()));
+                new(tokens.Select(tuple => new TokenInfo(tuple.Type, tuple.Rule)).ToList()));
         }
     }
 }
