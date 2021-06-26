@@ -163,7 +163,7 @@ namespace DarkLink.ParserGen
                     set
                     {{
                         rules.TryAdd(symbolType, new(TokensComparer.Instance));
-                        rules[symbolType][tokens] = value;
+                        rules[symbolType].Add(tokens, value);
                     }}
                 }}
             }}

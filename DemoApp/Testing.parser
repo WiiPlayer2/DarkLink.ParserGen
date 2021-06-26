@@ -1,18 +1,48 @@
 ﻿#namespace DemoApp
 #modifier public
-#start E
+#start Syntax
 
-PLUS = "+"
-ASTERISK = "*"
-L_BRACKET = "("
-R_BRACKET = ")"
-ID = "id"
+L_POINTY_BRACKET = "<"
+R_POINTY_BRACKET = ">"
+DEFINITION = "::="
+SPACE = " "
+PIPE = "|"
+EOL = /\r?\n/
+DOUBLE_QUOTE = '\"'
+QUOTE = "'"
+DASH = "-"
+LETTER = /[A-z]/
+DIGIT = /[0-9]/
+SYMBOL = /(\W|_)/
 
-E -> T E2;
-E2 -> #PLUS T E2;
-E2 -> #EMPTY;
-T -> F T2;
-T2 -> #ASTERISK F T2;
-T2 -> #EMPTY;
-F -> #ID;
-F -> #L_BRACKET E #R_BRACKET;
+Syntax -> Rule;
+Syntax -> Rule Syntax;
+Rule -> WS #L_POINTY_BRACKET RuleName #R_POINTY_BRACKET WS #DEFINITION WS Expression LineEnd;
+WS -> #SPACE WS;
+WS -> #EMPTY;
+Expression -> List;
+Expression -> List WS #PIPE WS Expression;
+LineEnd -> WS #EOL;
+LineEnd -> LineEnd LineEnd;
+List -> Term;
+List -> Term WS List;
+Term -> Literal;
+Term -> #L_POINTY_BRACKET RuleName #R_POINTY_BRACKET;
+Literal -> #DOUBLE_QUOTE Text1 #DOUBLE_QUOTE;
+Literal -> #QUOTE Text2 #QUOTE;
+Text1 -> #EMPTY;
+Text1 -> Character1 Text1;
+Text2 -> #EMPTY;
+Text2 -> Character2 Text2;
+Character -> #LETTER;
+Character -> #DIGIT;
+Character -> #SYMBOL;
+Character1 -> Character;
+Character1 -> #QUOTE;
+Character2 -> Character;
+Character2 -> #DOUBLE_QUOTE;
+RuleName -> #LETTER;
+RuleName -> RuleName RuleChar;
+RuleChar -> #LETTER;
+RuleChar -> #DIGIT;
+RuleChar -> #DASH;

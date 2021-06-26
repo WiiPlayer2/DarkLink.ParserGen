@@ -10,7 +10,7 @@ namespace DemoApp
     {
         private static void Main(string[] args)
         {
-            var content = @"id+id";
+            var content = @"<syntax>         ::= <rule> | <rule> <syntax>";
             var parser = new Testing.Parser();
             var rootNode = parser.Parse(content);
 
