@@ -15,6 +15,10 @@ namespace DarkLink.ParserGen
 
         private static Regex namespaceRegex = new(@"#namespace (?<namespace>\w+)");
 
+        private static Regex ruleRegex = new(@"(?<rule>\w+)\s*->(\s*(?<target>\#?\w+))+\s*;");
+
+        private static Regex startRegex = new(@"#start (?<start>\w+)");
+
         private static Regex tokenRegex = new(@"(?<type>\w+)\s*=\s*(/(?<regex>[^/]+)/|""(?<literal>[^""]+)""|'(?<literal>[^']+)')");
 
         public static Config? Parse(GeneratorExecutionContext context, AdditionalText additionalText)
@@ -27,7 +31,9 @@ namespace DarkLink.ParserGen
 
             string? @namespace = null;
             string? modifier = null;
-            var tokens = new List<(string Type, Rule Rule)>();
+            string? start = null;
+            var tokens = new List<(string Type, TokenRule Rule)>();
+            var rules = new List<(string Name, ParserRuleTarget[] Targets)>();
 
             foreach (var line in sourceText.Lines)
             {
@@ -51,10 +57,18 @@ namespace DarkLink.ParserGen
                     modifier = match.Groups["modifier"].Value;
                 }
 
+                if ((match = startRegex.Match(lineText)).Success)
+                {
+                    if (start is not null)
+                        return null;
+
+                    start = match.Groups["start"].Value;
+                }
+
                 if ((match = tokenRegex.Match(lineText)).Success)
                 {
                     var type = match.Groups["type"].Value;
-                    Rule? rule;
+                    TokenRule? rule;
                     if (match.Groups["regex"].Success)
                         rule = new RegexRule(match.Groups["regex"].Value);
                     else if (match.Groups["literal"].Success)
@@ -64,15 +78,41 @@ namespace DarkLink.ParserGen
 
                     tokens.Add((type, rule));
                 }
+
+                if ((match = ruleRegex.Match(lineText)).Success)
+                {
+                    var rule = match.Groups["rule"].Value;
+                    var targets = match.Groups["target"].Captures
+                        .Cast<Capture>()
+                        .Select(o =>
+                        {
+                            if (o.Value.StartsWith("#"))
+                                return new ParserRuleTarget(o.Value.Substring(1), true);
+                            return new ParserRuleTarget(o.Value, false);
+                        })
+                        .ToArray();
+                    rules.Add((rule, targets));
+                }
             }
 
             if (@namespace is null)
                 return null;
 
+            if (start is null)
+                return null;
+
             var name = Path.GetFileNameWithoutExtension(additionalText.Path);
             return new(
                 new(@namespace, name, modifier ?? string.Empty),
-                new(tokens.Select(tuple => new TokenInfo(tuple.Type, tuple.Rule)).ToList()));
+                new(tokens.Select(tuple => new TokenInfo(tuple.Type, tuple.Rule)).ToList()),
+                new(
+                    start,
+                    rules
+                        .ToLookup(o => o.Name)
+                        .Select(grouping => new ParserRule(grouping.Key, grouping
+                            .Select(tuple => (IReadOnlyList<ParserRuleTarget>)tuple.Targets.ToList())
+                            .ToList()))
+                        .ToList()));
         }
     }
 }

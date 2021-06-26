@@ -5,19 +5,25 @@ using System.Text;
 
 namespace DarkLink.ParserGen
 {
-    record Config(TypeInfo Type, LexerInfo Lexer);
+    record Config(TypeInfo Type, LexerInfo Lexer, ParserInfo Parser);
 
     record TypeInfo(string Namespace, string Name, string Modifier);
 
     record LexerInfo(IReadOnlyList<TokenInfo> Tokens);
 
-    record TokenInfo(string Name, Rule Rule);
+    record TokenInfo(string Name, TokenRule Rule);
 
-    record Rule();
+    record TokenRule();
 
-    record RegexRule(string Regex) : Rule;
+    record RegexRule(string Regex) : TokenRule;
 
-    record LiteralRule(string Literal) : Rule;
+    record LiteralRule(string Literal) : TokenRule;
+
+    record ParserInfo(string Start, IReadOnlyList<ParserRule> Rules);
+
+    record ParserRuleTarget(string Name, bool IsToken);
+
+    record ParserRule(string Name, IReadOnlyList<IReadOnlyList<ParserRuleTarget>> Targets);
 }
 
 namespace System.Runtime.CompilerServices

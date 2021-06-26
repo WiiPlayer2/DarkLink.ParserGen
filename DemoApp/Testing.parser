@@ -1,6 +1,12 @@
 ﻿#namespace DemoApp
 #modifier public
+#start Sentence
 
-Whitespace=/\s/
-Hello=/hello/
-World=/world/
+WS = /\s/
+Det = /(the|a)/
+Noun = /(cat|bat)/
+Verb = "eats"
+
+Sentence -> NounPhrase #WS VerbPhrase;
+NounPhrase -> #Det #WS #Noun;
+VerbPhrase -> #Verb #WS NounPhrase;
