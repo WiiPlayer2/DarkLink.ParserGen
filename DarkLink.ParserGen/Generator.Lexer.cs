@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace DarkLink.ParserGen
 {
@@ -74,7 +75,7 @@ namespace DarkLink.ParserGen
                 switch (token.Rule)
                 {
                     case RegexRule regexRule:
-                        writer.Write($"new RegexRule(new({Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(regexRule.Regex, true)}))");
+                        writer.Write($"new RegexRule(new({Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(regexRule.Regex, true)}, RegexOptions.Singleline))");
                         break;
 
                     case LiteralRule literalRule:

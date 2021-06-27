@@ -17,7 +17,11 @@ namespace DarkLink.ParserGen
             {
                 var entry = new VarArr<string>(new[] { cell.Symbol }.Concat(cell.Tokens.Where(o => o != "EMPTY")));
                 if (list.Any(o => StartsWith(o, entry) || list.Any(o => StartsWith(entry, o))))
+                {
+                    Console.WriteLine($"Check {cell.Symbol} -> {new VarArr<string>(entry.Targets.Skip(1))}");
                     return false;
+                }
+
                 list.Add(entry);
             }
 
@@ -36,8 +40,10 @@ namespace DarkLink.ParserGen
 
         private List<(string Symbol, string[] Tokens, IReadOnlyList<ParserRuleTarget> Targets)> ConstructLLParsingTable(Config config, int k, CancellationToken cancellationToken)
         {
-            var firsts = new SetOf2<ParserRuleTargets, string>(k);
-            var follows = new SetOf2<string, string>(k);
+            var emptyTarget = new[] { new ParserRuleTarget("EMPTY", true) };
+
+            var firsts = new SetOf<ParserRuleTargets, string>(k);
+            var follows = new SetOf<string, string>(k);
             var wordSet = new SpecialSet<ParserRuleTarget>(k);
 
             firsts[ParserRuleTargets.Empty].Add(VarArr<string>.Empty);
@@ -62,7 +68,7 @@ namespace DarkLink.ParserGen
                 foreach (var rule in config.Parser.Rules)
                 {
                     var key = new ParserRuleTargets(new ParserRuleTarget(rule.Name, false));
-                    var w = new ParserRuleTargets(rule.Targets).Limit(k);
+                    var w = new ParserRuleTargets(rule.Targets.Except(emptyTarget)).Limit(k);
                     changed |= firsts[key].AddRange(firsts[w]);
                 }
 
@@ -131,23 +137,13 @@ namespace DarkLink.ParserGen
             var map = new List<(string Symbol, string[] Tokens, IReadOnlyList<ParserRuleTarget> Targets)>();
             foreach (var rule in config.Parser.Rules)
             {
-                var w = new ParserRuleTargets(rule.Targets).Limit(k);
-                if (firsts[w].Contains(VarArr<string>.Empty))
+                var w = new ParserRuleTargets(rule.Targets.Except(emptyTarget)).Limit(k);
+                foreach (var tokens in firsts[w] + follows[rule.Name])
                 {
-                    foreach (var tokens in follows[rule.Name])
-                    {
-                        map.Add((rule.Name, tokens.Targets, rule.Targets));
-                    }
-                }
-                else
-                {
-                    foreach (var tokens in firsts[w])
-                    {
-                        var paddedTokens = tokens.Targets;
-                        if (paddedTokens.Length < k)
-                            paddedTokens = paddedTokens.Concat(Enumerable.Repeat("EMPTY", k - paddedTokens.Length)).ToArray();
-                        map.Add((rule.Name, paddedTokens, rule.Targets));
-                    }
+                    var paddedTokens = tokens.Targets;
+                    if (paddedTokens.Length < k)
+                        paddedTokens = paddedTokens.Concat(Enumerable.Repeat("EMPTY", k - paddedTokens.Length)).ToArray();
+                    map.Add((rule.Name, paddedTokens, rule.Targets));
                 }
             }
 
@@ -367,34 +363,15 @@ namespace DarkLink.ParserGen
 ");
         }
 
-        public class SetOf<TKey, TValue>
-        {
-            private readonly Dictionary<TKey, HashSet<TValue>> sets = new();
-
-            public ISet<TValue> this[TKey key]
-            {
-                get
-                {
-                    if (!sets.TryGetValue(key, out var set))
-                    {
-                        set = new();
-                        sets.Add(key, set);
-                    }
-
-                    return set;
-                }
-            }
-        }
-
         private class ParserRuleTargets : VarArr<ParserRuleTarget>
         {
             public ParserRuleTargets(params ParserRuleTarget[] targets)
-                : base(targets)
+                : this(targets.AsEnumerable())
             {
             }
 
             public ParserRuleTargets(IEnumerable<ParserRuleTarget> targets)
-                : base(targets) { }
+                : base(targets.Except(new[] { new ParserRuleTarget("EMPTY", true) })) { }
 
             public new static ParserRuleTargets Empty { get; } = new();
 
@@ -408,13 +385,13 @@ namespace DarkLink.ParserGen
                 => $"{(item.IsToken ? "#" : string.Empty)}{item.Name}";
         }
 
-        private class SetOf2<TKey, TValue>
+        private class SetOf<TKey, TValue>
         {
             private readonly int limit;
 
             private readonly Dictionary<TKey, SpecialSet<TValue>> sets = new();
 
-            public SetOf2(int limit)
+            public SetOf(int limit)
             {
                 this.limit = limit;
             }
