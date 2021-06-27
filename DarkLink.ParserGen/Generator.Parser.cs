@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.CodeAnalysis;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -9,10 +10,32 @@ namespace DarkLink.ParserGen
 {
     partial class Generator
     {
-        private List<(string Symbol, string[] Tokens, IReadOnlyList<ParserRuleTarget> Targets)> ConstructLLParsingTable(Config config, CancellationToken cancellationToken)
+        private bool CheckMap(List<(string Symbol, string[] Tokens, IReadOnlyList<ParserRuleTarget> Targets)> map)
         {
-            var k = config.Parser.K ?? 1;
+            var list = new List<VarArr<string>>();
+            foreach (var cell in map)
+            {
+                var entry = new VarArr<string>(new[] { cell.Symbol }.Concat(cell.Tokens.Where(o => o != "EMPTY")));
+                if (list.Any(o => StartsWith(o, entry) || list.Any(o => StartsWith(entry, o))))
+                    return false;
+                list.Add(entry);
+            }
 
+            return true;
+
+            bool StartsWith<T>(VarArr<T> arr1, VarArr<T> arr2)
+            {
+                for (var i = 0; i < arr2.Targets.Length; i++)
+                {
+                    if (!Equals(arr1.Targets[i], arr2.Targets[i]))
+                        return false;
+                }
+                return true;
+            }
+        }
+
+        private List<(string Symbol, string[] Tokens, IReadOnlyList<ParserRuleTarget> Targets)> ConstructLLParsingTable(Config config, int k, CancellationToken cancellationToken)
+        {
             var firsts = new SetOf2<ParserRuleTargets, string>(k);
             var follows = new SetOf2<string, string>(k);
             var wordSet = new SpecialSet<ParserRuleTarget>(k);
@@ -45,7 +68,7 @@ namespace DarkLink.ParserGen
 
                 if (k > 1)
                 {
-                    var words = Enumerable.Range(1, k).Select(i => GetWords(i).ToArray()).ToArray();
+                    var words = Enumerable.Range(1, k).Select(i => new HashSet<ParserRuleTargets>(GetWords(i))).ToArray();
                     HandleWords(1, new ParserRuleTargets[k]);
 
                     void HandleWords(int length, ParserRuleTargets[] currentWords)
@@ -131,9 +154,14 @@ namespace DarkLink.ParserGen
             return map;
         }
 
-        private void GenerateParser(TextWriter writer, Config config, CancellationToken cancellationToken)
+        private void GenerateParser(TextWriter writer, Config config, GeneratorExecutionContext context)
         {
-            var map = ConstructLLParsingTable(config, cancellationToken);
+            var map = ConstructLLParsingTable(config, config.Parser.K ?? 1, context.CancellationToken);
+            if (!CheckMap(map))
+            {
+                context.ReportDiagnostic(Diagnostic.Create(Diagnostics.FailedToConstructParsingTable, Location.None, config.Parser.K ?? 1));
+                return;
+            }
 
             writer.WriteLine($@"
         public class Parser

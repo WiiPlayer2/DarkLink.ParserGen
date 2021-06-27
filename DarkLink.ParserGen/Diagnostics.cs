@@ -32,6 +32,14 @@ namespace DarkLink.ParserGen
             "Parsing",
             DiagnosticSeverity.Error,
             true);
+
+        public static readonly DiagnosticDescriptor FailedToConstructParsingTable = new DiagnosticDescriptor(
+            "PG04",
+            "Failed to construct parsing table",
+            "Failed to construct parsing table with k = {0}",
+            "Preparing",
+            DiagnosticSeverity.Error,
+            true);
     }
 
 #pragma warning restore RS2008 // Enable analyzer release tracking

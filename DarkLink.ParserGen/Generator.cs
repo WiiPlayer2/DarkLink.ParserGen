@@ -61,7 +61,7 @@ namespace {config.Type.Namespace}
                 GenerateToken(writer);
                 GenerateLexer(writer, config);
                 GenerateSymbolType(writer, config);
-                GenerateParser(writer, config, context.CancellationToken);
+                GenerateParser(writer, config, context);
 
                 writer.WriteLine($@"
     }}
