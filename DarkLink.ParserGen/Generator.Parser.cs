@@ -119,7 +119,7 @@ namespace DarkLink.ParserGen
                     {
                         var paddedTokens = tokens.Targets;
                         if (paddedTokens.Length < k)
-                            paddedTokens = paddedTokens.Concat(Enumerable.Repeat("END", k - paddedTokens.Length)).ToArray();
+                            paddedTokens = paddedTokens.Concat(Enumerable.Repeat("EMPTY", k - paddedTokens.Length)).ToArray();
                         map.Add((rule.Name, paddedTokens, rule.Targets));
                     }
                 }
@@ -174,13 +174,24 @@ namespace DarkLink.ParserGen
                 private TokensComparer() {{ }}
 
                 public bool Equals(TokenType[]? x, TokenType[]? y)
-                    => x?.SequenceEqual(y) ?? false;
+                {{
+                    if (ReferenceEquals(x, y))
+                        return true;
+
+                    if(x is null || y is null)
+                        return false;
+
+                    var zip = x.Zip(y, (l, r) => (l, r));
+                    return zip.All(pair => pair.l == pair.r || pair.l == TokenType.EMPTY || pair.r == TokenType.EMPTY);
+                }}
 
                 public int GetHashCode(TokenType[]? obj)
-                    => obj?.Aggregate(0, (acc, curr) => acc ^ curr.GetHashCode()) ?? 0;
+                    => obj is null ? -1 : 0;
             }}
 
             private static readonly RuleTable ruleTable = new();
+
+            private const int K = {config.Parser.K ?? 1};
 
             static Parser()
             {{");
@@ -212,7 +223,7 @@ namespace DarkLink.ParserGen
                     stack.Push(new RuleSymbol(SymbolType.{config.Parser.Start}));
 
                     var tokenList = tokens
-                        .Concat(new []{{ new Token(TokenType.END, string.Empty, -1) }})
+                        .Concat(Enumerable.Repeat(new Token(TokenType.END, string.Empty, -1), K))
                         .ToArray();
 
                     var position = 0;
@@ -245,7 +256,7 @@ namespace DarkLink.ParserGen
                         {{
                             var lookAheadTokens = tokenList
                                 .Select(o => o.Type)
-                                .ToArray()[position..(position + 1)];
+                                .ToArray()[position..(position + K)];
                             var rule = ruleTable[ruleSymbol.Type, lookAheadTokens];
                             if (rule is null)
                                 throw new Exception();
