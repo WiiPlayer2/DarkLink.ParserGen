@@ -303,9 +303,19 @@ namespace DarkLink.ParserGen
 
             public record Node();
 
-            public record TokenNode(Token Token) : Node;
+            [DebuggerDisplay(""Token({{Token.Type}}, {{ToString()}})"")]
+            public record TokenNode(Token Token) : Node
+            {{
+                public override string ToString()
+                    => Token.Value;
+            }}
 
-            public record SymbolNode(SymbolType Type, IReadOnlyList<(Symbol Node, Node Segment)> Segments) : Node;
+            [DebuggerDisplay(""Symbol({{Type}}, {{ToString()}})"")]
+            public record SymbolNode(SymbolType Type, IReadOnlyList<(Symbol Node, Node Segment)> Segments) : Node
+            {{
+                public override string ToString()
+                    => string.Concat(Segments.Select(o => o.Segment));
+            }}
         }}
 ");
         }
