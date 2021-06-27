@@ -1,8 +1,8 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 
 namespace DarkLink.ParserGen
 {
@@ -10,23 +10,26 @@ namespace DarkLink.ParserGen
     {
         private List<(string Symbol, string[] Tokens, IReadOnlyList<ParserRuleTarget> Targets)> ConstructLLParsingTable(Config config)
         {
-            // k=1 for now
-            var k = 1;
+            var k = config.Parser.K ?? 1;
 
-            var firsts = new SetOf<ParserRuleTargets, string>();
-            foreach (var token in config.Lexer.Tokens)
-                firsts[new(new ParserRuleTarget(token.Name, true))].Add(token.Name);
+            var firsts = new SetOf2<ParserRuleTargets, string>(k);
+            var follows = new SetOf2<string, string>(k);
+            var wordSet = new SpecialSet<ParserRuleTarget>(k);
+
+            firsts[ParserRuleTargets.Empty].Add(VarArr<string>.Empty);
+            foreach (var a in config.Lexer.Tokens)
+            {
+                var target = new ParserRuleTarget(a.Name, true);
+                firsts[new(target)].Add(new(a.Name));
+                wordSet.Add(new(target));
+            }
             foreach (var rule in config.Parser.Rules)
             {
-                var key = new ParserRuleTargets(new ParserRuleTarget(rule.Name, false));
-                if (rule.Targets.Count == 1 && rule.Targets[0] is { IsToken: true, Name: "EMPTY" })
-                {
-                    firsts[key].Add("EMPTY");
-                }
+                wordSet.Add(new(new ParserRuleTarget(rule.Name, false)));
             }
-            firsts[new(new ParserRuleTarget("EMPTY", true))].Add("EMPTY");
 
             bool changed;
+
             do
             {
                 changed = false;
@@ -34,39 +37,57 @@ namespace DarkLink.ParserGen
                 foreach (var rule in config.Parser.Rules)
                 {
                     var key = new ParserRuleTargets(new ParserRuleTarget(rule.Name, false));
-                    for (var i = 0; i < rule.Targets.Count; i++)
+                    var w = new ParserRuleTargets(rule.Targets).Limit(k);
+                    changed |= firsts[key].AddRange(firsts[w]);
+                }
+
+                if (k > 1)
+                {
+                    var words = Enumerable.Range(1, k).Select(i => GetWords(i).ToArray()).ToArray();
+                    HandleWords(1, new ParserRuleTargets[k]);
+
+                    void HandleWords(int length, ParserRuleTargets[] currentWords)
                     {
-                        var hasEmpty = true;
-                        for (var j = 0; j < i; j++)
+                        var index = length - 1;
+                        foreach (var w in words[index])
                         {
-                            if (!firsts[new(rule.Targets[j])].Contains("EMPTY"))
+                            currentWords[index] = w.Limit(length);
+
+                            if (length < currentWords.Length)
                             {
-                                hasEmpty = false;
-                                break;
+                                HandleWords(length + 1, currentWords);
                             }
-                        }
-
-                        if (!hasEmpty)
-                            continue;
-
-                        foreach (var token in firsts[new(rule.Targets[i])])
-                        {
-                            changed |= firsts[key].Add(token);
+                            else
+                            {
+                                var key = currentWords.Aggregate(ParserRuleTargets.Empty, (acc, curr) => acc + curr).Limit(length);
+                                var setWithEmpty = new SpecialSet<string>(k);
+                                setWithEmpty.Add(VarArr<string>.Empty);
+                                var combinations = currentWords.Aggregate(setWithEmpty, (acc, curr) => acc + firsts[curr]);
+                                changed |= firsts[key].AddRange(combinations);
+                            }
                         }
                     }
 
-                    if (rule.Targets.All(target => firsts[new(target)].Contains("EMPTY")))
-                        changed |= firsts[key].Add("EMPTY");
+                    IEnumerable<ParserRuleTargets> GetWords(int k)
+                    {
+                        for (var i = 1; i <= k; i++)
+                        {
+                            foreach (var word in wordSet * k)
+                            {
+                                yield return new ParserRuleTargets(word.Limit(i).Targets);
+                            }
+                        }
+                    }
                 }
             }
             while (changed);
 
-            var follows = new SetOf<string, string>();
-            follows[config.Parser.Start].Add("END");
+            follows[config.Parser.Start].Add(new VarArr<string>(Enumerable.Repeat("END", k)));
 
             do
             {
                 changed = false;
+
                 foreach (var rule in config.Parser.Rules)
                 {
                     for (var i = 0; i < rule.Targets.Count; i++)
@@ -74,26 +95,8 @@ namespace DarkLink.ParserGen
                         if (rule.Targets[i].IsToken)
                             continue;
 
-                        if (i < rule.Targets.Count - 1)
-                        {
-                            foreach (var token in firsts[new(rule.Targets[i + 1])])
-                            {
-                                if (token == "EMPTY")
-                                    continue;
-                                changed |= follows[rule.Targets[i].Name].Add(token);
-                            }
-
-                            if (firsts[new(rule.Targets[i + 1])].Contains("EMPTY"))
-                            {
-                                foreach (var token in follows[rule.Name])
-                                    changed |= follows[rule.Targets[i].Name].Add(token);
-                            }
-                        }
-                        else
-                        {
-                            foreach (var token in follows[rule.Name])
-                                changed |= follows[rule.Targets[i].Name].Add(token);
-                        }
+                        var w = new ParserRuleTargets(rule.Targets.ToArray()[(i + 1)..]).Limit(k);
+                        changed |= follows[rule.Targets[i].Name].AddRange(firsts[w] + follows[rule.Name]);
                     }
                 }
             }
@@ -102,18 +105,22 @@ namespace DarkLink.ParserGen
             var map = new List<(string Symbol, string[] Tokens, IReadOnlyList<ParserRuleTarget> Targets)>();
             foreach (var rule in config.Parser.Rules)
             {
-                foreach (var token in firsts[new(rule.Targets[0])])
+                var w = new ParserRuleTargets(rule.Targets).Limit(k);
+                if (firsts[w].Contains(VarArr<string>.Empty))
                 {
-                    if (token == "EMPTY")
+                    foreach (var tokens in follows[rule.Name])
                     {
-                        foreach (var followToken in follows[rule.Name])
-                        {
-                            map.Add((rule.Name, new[] { followToken }, rule.Targets));
-                        }
+                        map.Add((rule.Name, tokens.Targets, rule.Targets));
                     }
-                    else
+                }
+                else
+                {
+                    foreach (var tokens in firsts[w])
                     {
-                        map.Add((rule.Name, new[] { token }, rule.Targets));
+                        var paddedTokens = tokens.Targets;
+                        if (paddedTokens.Length < k)
+                            paddedTokens = paddedTokens.Concat(Enumerable.Repeat("END", k - paddedTokens.Length)).ToArray();
+                        map.Add((rule.Name, paddedTokens, rule.Targets));
                     }
                 }
             }
@@ -327,27 +334,133 @@ namespace DarkLink.ParserGen
             }
         }
 
-        private class ParserRuleTargets
+        private class ParserRuleTargets : VarArr<ParserRuleTarget>
         {
             public ParserRuleTargets(params ParserRuleTarget[] targets)
+                : base(targets)
+            {
+            }
+
+            public ParserRuleTargets(IEnumerable<ParserRuleTarget> targets)
+                : base(targets) { }
+
+            public new static ParserRuleTargets Empty { get; } = new();
+
+            public static ParserRuleTargets operator +(ParserRuleTargets arr1, ParserRuleTargets arr2)
+                            => new((arr1 + (VarArr<ParserRuleTarget>)arr2).Targets);
+
+            public new ParserRuleTargets Limit(int length)
+                => new(base.Limit(length).Targets);
+
+            protected override string ItemToString(ParserRuleTarget item)
+                => $"{(item.IsToken ? "#" : string.Empty)}{item.Name}";
+        }
+
+        private class SetOf2<TKey, TValue>
+        {
+            private readonly int limit;
+
+            private readonly Dictionary<TKey, SpecialSet<TValue>> sets = new();
+
+            public SetOf2(int limit)
+            {
+                this.limit = limit;
+            }
+
+            public SpecialSet<TValue> this[TKey key]
+            {
+                get
+                {
+                    if (!sets.TryGetValue(key, out var set))
+                    {
+                        set = new(limit);
+                        sets.Add(key, set);
+                    }
+
+                    return set;
+                }
+            }
+        }
+
+        private class SpecialSet<T> : HashSet<VarArr<T>>
+        {
+            private readonly int limit;
+
+            public SpecialSet(int limit)
+            {
+                this.limit = limit;
+            }
+
+            public static SpecialSet<T> operator *(SpecialSet<T> set, int power)
+            {
+                var acc = new SpecialSet<T>(set.limit);
+                if (power == 0)
+                    return acc;
+
+                acc.Add(VarArr<T>.Empty);
+                for (var i = 0; i < power; i++)
+                {
+                    acc += set;
+                }
+                return acc;
+            }
+
+            public static SpecialSet<T> operator +(SpecialSet<T> set1, SpecialSet<T> set2)
+            {
+                var result = new SpecialSet<T>(Math.Min(set1.limit, set2.limit));
+                foreach (var item1 in set1)
+                    foreach (var item2 in set2)
+                        result.Add(item1 + item2);
+                return result;
+            }
+
+            public new bool Add(VarArr<T> item)
+                => base.Add(item.Limit(limit));
+
+            public bool AddRange(IEnumerable<VarArr<T>> items)
+            {
+                var changed = false;
+                foreach (var item in items)
+                    changed |= Add(item);
+                return changed;
+            }
+        }
+
+        private class VarArr<T>
+        {
+            public VarArr(params T[] targets)
             {
                 Targets = targets;
             }
 
-            public ParserRuleTarget[] Targets { get; }
+            public VarArr(IEnumerable<T> targets)
+                : this(targets.ToArray()) { }
+
+            public static VarArr<T> Empty { get; } = new();
+
+            public T[] Targets { get; }
+
+            public static VarArr<T> operator +(VarArr<T> arr1, VarArr<T> arr2)
+                => new VarArr<T>(arr1.Targets.Concat(arr2.Targets));
 
             public override bool Equals(object obj)
             {
-                if (obj is not ParserRuleTargets other)
+                if (obj is not VarArr<T> other)
                     return false;
                 return Targets.SequenceEqual(other.Targets);
             }
 
             public override int GetHashCode()
-                => Targets.Aggregate(0, (acc, curr) => acc ^ curr.GetHashCode());
+                => Targets.Aggregate(0, (acc, curr) => acc ^ curr?.GetHashCode() ?? 0);
+
+            public VarArr<T> Limit(int length)
+                => new VarArr<T>(Targets.Take(length));
 
             public override string ToString()
-                => string.Join(" ", Targets.Select(o => $"{(o.IsToken ? "#" : string.Empty)}{o.Name}"));
+                => string.Join(" ", Targets.Select(ItemToString));
+
+            protected virtual string ItemToString(T item)
+                => item?.ToString() ?? string.Empty;
         }
     }
 }

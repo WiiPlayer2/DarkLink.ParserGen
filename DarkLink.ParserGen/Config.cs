@@ -19,7 +19,7 @@ namespace DarkLink.ParserGen
 
     record LiteralRule(string Literal) : TokenRule;
 
-    record ParserInfo(string Start, IReadOnlyList<ParserRule> Rules);
+    record ParserInfo(string Start, int? K, IReadOnlyList<ParserRule> Rules);
 
     record ParserRuleTarget(string Name, bool IsToken);
 

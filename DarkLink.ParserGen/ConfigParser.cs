@@ -11,6 +11,8 @@ namespace DarkLink.ParserGen
 {
     internal static class ConfigParser
     {
+        private static Regex kRegex = new(@"#k (?<k>\d+)");
+
         private static Regex modifierRegex = new(@"#modifier (?<modifier>public|internal)");
 
         private static Regex namespaceRegex = new(@"#namespace (?<namespace>\w+)");
@@ -32,6 +34,7 @@ namespace DarkLink.ParserGen
             string? @namespace = null;
             string? modifier = null;
             string? start = null;
+            int? k = null;
             var tokens = new List<(string Type, TokenRule Rule)>();
             var rules = new List<(string Name, ParserRuleTarget[] Targets)>();
 
@@ -63,6 +66,14 @@ namespace DarkLink.ParserGen
                         return null;
 
                     start = match.Groups["start"].Value;
+                }
+
+                if ((match = kRegex.Match(lineText)).Success)
+                {
+                    if (k is not null)
+                        return null;
+
+                    k = int.Parse(match.Groups["k"].Value);
                 }
 
                 if ((match = tokenRegex.Match(lineText)).Success)
@@ -107,6 +118,7 @@ namespace DarkLink.ParserGen
                 new(tokens.Select(tuple => new TokenInfo(tuple.Type, tuple.Rule)).ToList()),
                 new(
                     start,
+                    k,
                     rules
                         .Select(tuple => new ParserRule(tuple.Name, tuple.Targets))
                         .ToList()));
