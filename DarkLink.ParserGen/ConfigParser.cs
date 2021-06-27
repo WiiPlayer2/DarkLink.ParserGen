@@ -40,6 +40,7 @@ namespace DarkLink.ParserGen
 
             foreach (var line in sourceText.Lines)
             {
+                context.CancellationToken.ThrowIfCancellationRequested();
                 var lineText = line.ToString();
 
                 Match? match;

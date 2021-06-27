@@ -3,12 +3,13 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 
 namespace DarkLink.ParserGen
 {
     partial class Generator
     {
-        private List<(string Symbol, string[] Tokens, IReadOnlyList<ParserRuleTarget> Targets)> ConstructLLParsingTable(Config config)
+        private List<(string Symbol, string[] Tokens, IReadOnlyList<ParserRuleTarget> Targets)> ConstructLLParsingTable(Config config, CancellationToken cancellationToken)
         {
             var k = config.Parser.K ?? 1;
 
@@ -33,6 +34,7 @@ namespace DarkLink.ParserGen
             do
             {
                 changed = false;
+                cancellationToken.ThrowIfCancellationRequested();
 
                 foreach (var rule in config.Parser.Rules)
                 {
@@ -87,6 +89,7 @@ namespace DarkLink.ParserGen
             do
             {
                 changed = false;
+                cancellationToken.ThrowIfCancellationRequested();
 
                 foreach (var rule in config.Parser.Rules)
                 {
@@ -128,9 +131,9 @@ namespace DarkLink.ParserGen
             return map;
         }
 
-        private void GenerateParser(TextWriter writer, Config config)
+        private void GenerateParser(TextWriter writer, Config config, CancellationToken cancellationToken)
         {
-            var map = ConstructLLParsingTable(config);
+            var map = ConstructLLParsingTable(config, cancellationToken);
 
             writer.WriteLine($@"
         public class Parser

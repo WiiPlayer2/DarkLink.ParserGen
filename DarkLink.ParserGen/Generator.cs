@@ -17,6 +17,8 @@ namespace DarkLink.ParserGen
             foreach (var additionalText in context.AdditionalFiles
                 .Where(o => string.Equals(Path.GetExtension(o.Path), ".parser", StringComparison.InvariantCultureIgnoreCase)))
             {
+                context.CancellationToken.ThrowIfCancellationRequested();
+
                 var config = ConfigParser.Parse(context, additionalText);
                 if (config is null)
                     continue;
@@ -59,7 +61,7 @@ namespace {config.Type.Namespace}
                 GenerateToken(writer);
                 GenerateLexer(writer, config);
                 GenerateSymbolType(writer, config);
-                GenerateParser(writer, config);
+                GenerateParser(writer, config, context.CancellationToken);
 
                 writer.WriteLine($@"
     }}
