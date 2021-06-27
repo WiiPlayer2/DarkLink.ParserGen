@@ -11,25 +11,20 @@ namespace DarkLink.ParserGen
         private List<(string Symbol, string[] Tokens, IReadOnlyList<ParserRuleTarget> Targets)> ConstructLLParsingTable(Config config)
         {
             // k=1 for now
+            var k = 1;
 
-            var firsts = new Dictionary<ParserRuleTarget[], HashSet<string>>(ArrayComparer<ParserRuleTarget>.Instance);
+            var firsts = new SetOf<ParserRuleTargets, string>();
             foreach (var token in config.Lexer.Tokens)
-                firsts[new ParserRuleTarget[] { new(token.Name, true) }] = new(new[] { token.Name });
+                firsts[new(new ParserRuleTarget(token.Name, true))].Add(token.Name);
             foreach (var rule in config.Parser.Rules)
             {
-                var key = new ParserRuleTarget[] { new(rule.Name, false) };
-                if (!firsts.TryGetValue(key, out var set))
-                {
-                    set = new();
-                    firsts[key] = set;
-                }
-
+                var key = new ParserRuleTargets(new ParserRuleTarget(rule.Name, false));
                 if (rule.Targets.Count == 1 && rule.Targets[0] is { IsToken: true, Name: "EMPTY" })
                 {
-                    set.Add("EMPTY");
+                    firsts[key].Add("EMPTY");
                 }
             }
-            firsts[new ParserRuleTarget[] { new("EMPTY", true) }] = new(new[] { "EMPTY" });
+            firsts[new(new ParserRuleTarget("EMPTY", true))].Add("EMPTY");
 
             bool changed;
             do
@@ -38,13 +33,13 @@ namespace DarkLink.ParserGen
 
                 foreach (var rule in config.Parser.Rules)
                 {
-                    var key = new[] { new ParserRuleTarget(rule.Name, false) };
+                    var key = new ParserRuleTargets(new ParserRuleTarget(rule.Name, false));
                     for (var i = 0; i < rule.Targets.Count; i++)
                     {
                         var hasEmpty = true;
                         for (var j = 0; j < i; j++)
                         {
-                            if (!firsts[new[] { rule.Targets[j] }].Contains("EMPTY"))
+                            if (!firsts[new(rule.Targets[j])].Contains("EMPTY"))
                             {
                                 hasEmpty = false;
                                 break;
@@ -54,22 +49,19 @@ namespace DarkLink.ParserGen
                         if (!hasEmpty)
                             continue;
 
-                        foreach (var token in firsts[new[] { rule.Targets[i] }])
+                        foreach (var token in firsts[new(rule.Targets[i])])
                         {
                             changed |= firsts[key].Add(token);
                         }
                     }
 
-                    if (rule.Targets.All(target => firsts[new[] { target }].Contains("EMPTY")))
+                    if (rule.Targets.All(target => firsts[new(target)].Contains("EMPTY")))
                         changed |= firsts[key].Add("EMPTY");
                 }
             }
             while (changed);
 
-            var follows = new Dictionary<string, HashSet<string>>();
-            foreach (var rule in config.Parser.Rules)
-                follows[rule.Name] = new();
-
+            var follows = new SetOf<string, string>();
             follows[config.Parser.Start].Add("END");
 
             do
@@ -84,14 +76,14 @@ namespace DarkLink.ParserGen
 
                         if (i < rule.Targets.Count - 1)
                         {
-                            foreach (var token in firsts[new[] { rule.Targets[i + 1] }])
+                            foreach (var token in firsts[new(rule.Targets[i + 1])])
                             {
                                 if (token == "EMPTY")
                                     continue;
                                 changed |= follows[rule.Targets[i].Name].Add(token);
                             }
 
-                            if (firsts[new[] { rule.Targets[i + 1] }].Contains("EMPTY"))
+                            if (firsts[new(rule.Targets[i + 1])].Contains("EMPTY"))
                             {
                                 foreach (var token in follows[rule.Name])
                                     changed |= follows[rule.Targets[i].Name].Add(token);
@@ -110,7 +102,7 @@ namespace DarkLink.ParserGen
             var map = new List<(string Symbol, string[] Tokens, IReadOnlyList<ParserRuleTarget> Targets)>();
             foreach (var rule in config.Parser.Rules)
             {
-                foreach (var token in firsts[new[] { rule.Targets[0] }])
+                foreach (var token in firsts[new(rule.Targets[0])])
                 {
                     if (token == "EMPTY")
                     {
@@ -316,19 +308,46 @@ namespace DarkLink.ParserGen
 ");
         }
 
-        private class ArrayComparer<T> : IEqualityComparer<T[]>
+        public class SetOf<TKey, TValue>
         {
-            private ArrayComparer()
+            private readonly Dictionary<TKey, HashSet<TValue>> sets = new();
+
+            public ISet<TValue> this[TKey key]
             {
+                get
+                {
+                    if (!sets.TryGetValue(key, out var set))
+                    {
+                        set = new();
+                        sets.Add(key, set);
+                    }
+
+                    return set;
+                }
+            }
+        }
+
+        private class ParserRuleTargets
+        {
+            public ParserRuleTargets(params ParserRuleTarget[] targets)
+            {
+                Targets = targets;
             }
 
-            public static ArrayComparer<T> Instance { get; } = new ArrayComparer<T>();
+            public ParserRuleTarget[] Targets { get; }
 
-            public bool Equals(T[]? x, T[]? y)
-                => x?.SequenceEqual(y) ?? false;
+            public override bool Equals(object obj)
+            {
+                if (obj is not ParserRuleTargets other)
+                    return false;
+                return Targets.SequenceEqual(other.Targets);
+            }
 
-            public int GetHashCode(T[]? obj)
-                => obj?.Aggregate(0, (acc, curr) => acc ^ curr?.GetHashCode() ?? 0) ?? 0;
+            public override int GetHashCode()
+                => Targets.Aggregate(0, (acc, curr) => acc ^ curr.GetHashCode());
+
+            public override string ToString()
+                => string.Join(" ", Targets.Select(o => $"{(o.IsToken ? "#" : string.Empty)}{o.Name}"));
         }
     }
 }
