@@ -42,42 +42,51 @@ namespace DarkLink.ParserGen
             {
                 context.CancellationToken.ThrowIfCancellationRequested();
                 var lineText = line.ToString();
+                var location = Location.Create(additionalText.Path, line.Span, new(new(line.LineNumber, 0), new(line.LineNumber, line.Span.Length)));
 
                 Match? match;
                 if ((match = namespaceRegex.Match(lineText)).Success)
                 {
                     if (@namespace is not null)
+                    {
+                        context.ReportDiagnostic(Diagnostic.Create(Diagnostics.ConfigParserAlreadySet, location, "namespace"));
                         return null;
+                    }
 
                     @namespace = match.Groups["namespace"].Value;
                     continue;
                 }
-
-                if ((match = modifierRegex.Match(lineText)).Success)
+                else if ((match = modifierRegex.Match(lineText)).Success)
                 {
                     if (modifier is not null)
+                    {
+                        context.ReportDiagnostic(Diagnostic.Create(Diagnostics.ConfigParserAlreadySet, location, "modifier"));
                         return null;
+                    }
 
                     modifier = match.Groups["modifier"].Value;
                 }
-
-                if ((match = startRegex.Match(lineText)).Success)
+                else if ((match = startRegex.Match(lineText)).Success)
                 {
                     if (start is not null)
+                    {
+                        context.ReportDiagnostic(Diagnostic.Create(Diagnostics.ConfigParserAlreadySet, location, "start"));
                         return null;
+                    }
 
                     start = match.Groups["start"].Value;
                 }
-
-                if ((match = kRegex.Match(lineText)).Success)
+                else if ((match = kRegex.Match(lineText)).Success)
                 {
                     if (k is not null)
+                    {
+                        context.ReportDiagnostic(Diagnostic.Create(Diagnostics.ConfigParserAlreadySet, location, "k"));
                         return null;
+                    }
 
                     k = int.Parse(match.Groups["k"].Value);
                 }
-
-                if ((match = tokenRegex.Match(lineText)).Success)
+                else if ((match = tokenRegex.Match(lineText)).Success)
                 {
                     var type = match.Groups["type"].Value;
                     TokenRule? rule;
@@ -86,12 +95,11 @@ namespace DarkLink.ParserGen
                     else if (match.Groups["literal"].Success)
                         rule = new LiteralRule(match.Groups["literal"].Value);
                     else
-                        return null;
+                        throw new NotSupportedException();
 
                     tokens.Add((type, rule));
                 }
-
-                if ((match = ruleRegex.Match(lineText)).Success)
+                else if ((match = ruleRegex.Match(lineText)).Success)
                 {
                     var rule = match.Groups["rule"].Value;
                     var targets = match.Groups["target"].Captures
@@ -105,13 +113,24 @@ namespace DarkLink.ParserGen
                         .ToArray();
                     rules.Add((rule, targets));
                 }
+
+                if (!match.Success && !string.IsNullOrWhiteSpace(lineText))
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(Diagnostics.ConfigParserInvalidLine, location, lineText));
+                }
             }
 
             if (@namespace is null)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(Diagnostics.ConfigParserNotSet, Location.Create(additionalText.Path, default, default), "namespace"));
                 return null;
+            }
 
             if (start is null)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(Diagnostics.ConfigParserNotSet, Location.Create(additionalText.Path, default, default), "start"));
                 return null;
+            }
 
             var name = Path.GetFileNameWithoutExtension(additionalText.Path);
             return new(
