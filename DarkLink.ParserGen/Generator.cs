@@ -1,6 +1,8 @@
-﻿using Microsoft.CodeAnalysis;
+﻿using DarkLink.ParserGen.Parsing;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -29,6 +31,7 @@ namespace DarkLink.ParserGen
 
         public void Initialize(GeneratorInitializationContext context)
         {
+            Testing.Test();
         }
 
         private void AddSource(GeneratorExecutionContext context, string hintName, Action<StringWriter> write)
