@@ -7,7 +7,7 @@ namespace DarkLink.ParserGen.Parsing
 {
     internal static class Earley2
     {
-        private record NodeLabel(object? s, int j, int i);
+        private record NodeLabel(object? S, int Start, int End);
 
         private record Node(NodeLabel Label)
         {
@@ -28,9 +28,7 @@ namespace DarkLink.ParserGen.Parsing
             public LR0Item Step() => this with { Position = Position + 1 };
         }
 
-        private record EarleyItem(LR0Item s, int j, Node? w);
-
-        private record HItem(object v1, object? v2);
+        private record EarleyItem(LR0Item LR0, int Start, Node? Node);
 
         public class Parser
         {
@@ -70,12 +68,12 @@ namespace DarkLink.ParserGen.Parsing
                     while (!R.IsEmpty)
                     {
                         var A = R.Remove();
-                        var h = A.j;
-                        var w = A.w;
+                        var h = A.Start;
+                        var w = A.Node;
 
-                        if (!A.s.IsFinished)
+                        if (!A.LR0.IsFinished)
                         {
-                            foreach (var production in grammar.Productions.Where(p => p.Left == A.s.Current))
+                            foreach (var production in grammar.Productions.Where(p => p.Left == A.LR0.Current))
                             {
                                 var item = new EarleyItem(new(production, 0), i, null);
                                 if (IsInSigmaIndexN(production.Right) && !E[i].Contains(item))
@@ -89,9 +87,9 @@ namespace DarkLink.ParserGen.Parsing
                                 }
                             }
 
-                            if (H.TryGetValue(A.s.Current, out v))
+                            if (H.TryGetValue(A.LR0.Current, out v))
                             {
-                                var lr0 = A.s with { Position = A.s.Position + 1 };
+                                var lr0 = A.LR0 with { Position = A.LR0.Position + 1 };
                                 var y = MakeNode(lr0, h, i, w, v, V);
                                 var beta = lr0.Production.Right.Skip(lr0.Position).ToArray();
                                 var item = new EarleyItem(lr0, h, y);
@@ -110,7 +108,7 @@ namespace DarkLink.ParserGen.Parsing
                         {
                             if (w is null)
                             {
-                                var label = new NodeLabel(A.s.Production.Left, i, i);
+                                var label = new NodeLabel(A.LR0.Production.Left, i, i);
                                 if (V.TryGetValue(label, out v))
                                 {
                                     v = new Node(label);
@@ -128,14 +126,14 @@ namespace DarkLink.ParserGen.Parsing
 
                             if (h == i)
                             {
-                                H.Add(A.s.Production.Left, w);
+                                H.Add(A.LR0.Production.Left, w);
                             }
 
-                            foreach (var item in E[h].Where(i => !i.s.IsFinished && i.s.Current == A.s.Production.Left))
+                            foreach (var item in E[h].Where(i => !i.LR0.IsFinished && i.LR0.Current == A.LR0.Production.Left))
                             {
-                                var y = MakeNode(item.s.Step(), item.j, i, item.w, w, V);
-                                var delta = item.s.Production.Right.Skip(item.s.Position + 1).ToArray();
-                                var newItem = new EarleyItem(item.s.Step(), item.j, y);
+                                var y = MakeNode(item.LR0.Step(), item.Start, i, item.Node, w, V);
+                                var delta = item.LR0.Production.Right.Skip(item.LR0.Position + 1).ToArray();
+                                var newItem = new EarleyItem(item.LR0.Step(), item.Start, y);
                                 if (IsInSigmaIndexN(delta) && !E[i].Contains(newItem))
                                 {
                                     E[i].Add(newItem);
@@ -156,29 +154,29 @@ namespace DarkLink.ParserGen.Parsing
 
                     while (!Q.IsEmpty)
                     {
-                        var A = Q.Remove(item => item.s.Current == tokens[i]);
-                        var h = A.j;
-                        var w = A.w;
+                        var A = Q.Remove(item => item.LR0.Current == tokens[i]);
+                        var h = A.Start;
+                        var w = A.Node;
 
-                        var y = MakeNode(A.s.Step(), h, i + 1, w, v, V);
+                        var y = MakeNode(A.LR0.Step(), h, i + 1, w, v, V);
 
-                        var beta = A.s.Production.Right.Skip(A.s.Position + 1).ToArray();
+                        var beta = A.LR0.Production.Right.Skip(A.LR0.Position + 1).ToArray();
 
                         if (IsInSigmaIndexN(beta))
                         {
-                            E[i + 1].Add(new(A.s.Step(), h, y));
+                            E[i + 1].Add(new(A.LR0.Step(), h, y));
                         }
 
                         if (beta.Length > 0 && beta[0] == tokens[i + 1])
                         {
-                            Q_.Add(new(A.s.Step(), h, y));
+                            Q_.Add(new(A.LR0.Step(), h, y));
                         }
                     }
                 }
 
                 return E.Last()
-                    .Where(i => i.s.IsFinished && i.s.Production.Left == grammar.Start && i.j == 0)
-                    .Select(i => i.w);
+                    .Where(i => i.LR0.IsFinished && i.LR0.Production.Left == grammar.Start && i.Start == 0)
+                    .Select(i => i.Node);
             }
 
             private bool IsInSigmaIndexN(Symbol[] word) => word.Length == 0 || word[0] is NonTerminalSymbol;
