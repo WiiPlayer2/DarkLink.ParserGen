@@ -109,7 +109,7 @@ namespace DarkLink.ParserGen.Parsing
                             if (w is null)
                             {
                                 var label = new NodeLabel(A.LR0.Production.Left, i, i);
-                                if (V.TryGetValue(label, out v))
+                                if (!V.TryGetValue(label, out v))
                                 {
                                     v = new Node(label);
                                     V[label] = v;
@@ -141,7 +141,7 @@ namespace DarkLink.ParserGen.Parsing
                                 }
                                 if (delta.Length > 0 && tokens.Count > i && delta[0] == tokens[i])
                                 {
-                                    Q.Add(item);
+                                    Q.Add(newItem);
                                 }
                             }
                         }
@@ -167,7 +167,7 @@ namespace DarkLink.ParserGen.Parsing
                             E[i + 1].Add(new(A.LR0.Step(), h, y));
                         }
 
-                        if (beta.Length > 0 && beta[0] == tokens[i + 1])
+                        if (beta.Length > 0 && tokens.Count > i + 1 && beta[0] == tokens[i + 1])
                         {
                             Q_.Add(new(A.LR0.Step(), h, y));
                         }
