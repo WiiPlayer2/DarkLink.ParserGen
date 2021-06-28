@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Text;
 
@@ -9,242 +7,210 @@ namespace DarkLink.ParserGen.Parsing
 {
     internal static class Earley
     {
-        private record SPPFNodeLabel(object SymbolOrProductionState, int Start, int End);
+        private record NodeLabel(object? S, int Start, int End);
 
-        private abstract record SPPFNode();
+        private record Node(NodeLabel Label)
+        {
+            public List<PackNode> Children { get; } = new();
+        }
 
-        private record SPPFSymbolNode(SPPFNodeLabel Label, List<SPPFNode> Children) : SPPFNode();
+        private record PackNode(Node? Left, Node? Right);
 
-        private record SPPFPackedNode(SPPFNode Parent, ProductionState ProductionState, SPPFNode? Left, object? Right) : SPPFNode();
-
-        private record ProductionState(Production Production, int ProductionPosition)
+        private record LR0Item(Production Production, int Position)
         {
             public override string ToString()
-                => $"{Production.Left} -> {(Production.Right.Length == 0 ? "ε" : string.Join(" ", Production.Right.Select((s, i) => (ProductionPosition == i ? "•" : string.Empty) + s.ToString())))}" + (ProductionPosition == Production.Right.Length ? "•" : string.Empty);
+                => $"{Production.Left} -> {(Production.Right.Length == 0 ? "ε" : string.Join(" ", Production.Right.Select((s, i) => (Position == i ? "•" : string.Empty) + s.ToString())))}" + (Position == Production.Right.Length ? "•" : string.Empty);
+
+            public Symbol Current => Production.Right[Position];
+
+            public bool IsFinished => Production.Right.Length == Position;
+
+            public LR0Item Step() => this with { Position = Position + 1 };
         }
+
+        private record EarleyItem(LR0Item LR0, int Start, Node? Node);
 
         public class Parser
         {
             private readonly Grammar grammar;
 
-            private readonly Production startProduction;
-
             public Parser(Grammar grammar)
             {
                 this.grammar = grammar;
-                var newStart = new DerivedNonTerminalSymbol(grammar.Start);
-                startProduction = new Production(newStart, new[] { grammar.Start });
             }
 
-            public object Parse(IEnumerable<TerminalSymbol> terminalSymbols)
+            public object Parse(IReadOnlyList<TerminalSymbol> tokens)
             {
-                var parsing = new Parsing(terminalSymbols.ToList(), grammar, startProduction);
-                var lastSet = (OrderedSet<State>)parsing.Parse();
-                var states = lastSet.Where(o => o.Node is not null && o.IsFinished && o.OriginPosition == 0).ToList();
-                return states;
-            }
+                var n = tokens.Count;
+                var E = Enumerable.Repeat(0, tokens.Count + 1)
+                    .Select(_ => new Set<EarleyItem>())
+                    .ToArray();
+                var R = new Set<EarleyItem>();
+                var Q_ = new Set<EarleyItem>();
+                var V = new Dictionary<NodeLabel, Node>();
+                Node? v;
 
-            private class Parsing
-            {
-                private readonly Grammar grammar;
-
-                private readonly Dictionary<SPPFNodeLabel, SPPFSymbolNode> nodes = new();
-
-                private readonly OrderedSet<State>[] sets;
-
-                private readonly IReadOnlyList<TerminalSymbol> terminalSymbols;
-
-                public Parsing(IReadOnlyList<TerminalSymbol> terminalSymbols, Grammar grammar, Production startProduction)
+                foreach (var production in grammar.Productions.Where(p => p.Left == grammar.Start))
                 {
-                    sets = new OrderedSet<State>[terminalSymbols.Count + 1];
-                    for (var i = 0; i < sets.Length; i++)
-                    {
-                        sets[i] = new OrderedSet<State>();
-                    }
-
-                    this.terminalSymbols = terminalSymbols;
-
-                    sets[0].Add(new(new(startProduction, 0), 0, null));
-                    this.grammar = grammar;
+                    if (IsInSigmaIndexN(production.Right))
+                        E[0].Add(new(new(production, 0), 0, null));
+                    if (production.Right.Length > 0 && production.Right[0] == tokens[0])
+                        Q_.Add(new(new(production, 0), 0, null));
                 }
 
-                public object Parse()
+                for (var i = 0; i <= n; i++)
                 {
-                    for (var k = 0; k < sets.Length; k++)
+                    var H = new Dictionary<Symbol, Node>();
+                    R = E[i].Clone();
+                    var Q = Q_;
+                    Q_ = new();
+
+                    while (!R.IsEmpty)
                     {
-                        foreach (var state in sets[k])
+                        var A = R.Remove();
+                        var h = A.Start;
+                        var w = A.Node;
+
+                        if (!A.LR0.IsFinished)
                         {
-                            if (!state.IsFinished)
+                            foreach (var production in grammar.Productions.Where(p => p.Left == A.LR0.Current))
                             {
-                                if (state.Current is NonTerminalSymbol)
-                                    Predict(state, k);
-                                else
-                                    Scan(state, k, terminalSymbols);
+                                var item = new EarleyItem(new(production, 0), i, null);
+                                if (IsInSigmaIndexN(production.Right) && !E[i].Contains(item))
+                                {
+                                    E[i].Add(item);
+                                    R.Add(item);
+                                }
+                                if (production.Right.Length > 0 && tokens.Count > i && production.Right[0] == tokens[i])
+                                {
+                                    Q.Add(item);
+                                }
                             }
-                            else
+
+                            if (H.TryGetValue(A.LR0.Current, out v))
                             {
-                                Complete(state, k);
+                                var lr0 = A.LR0 with { Position = A.LR0.Position + 1 };
+                                var y = MakeNode(lr0, h, i, w, v, V);
+                                var beta = lr0.Production.Right.Skip(lr0.Position).ToArray();
+                                var item = new EarleyItem(lr0, h, y);
+                                if (IsInSigmaIndexN(beta) && !E[i].Contains(item))
+                                {
+                                    E[i].Add(item);
+                                    R.Add(item);
+                                }
+                                if (beta.Length > 0 && beta[0] == tokens[i])
+                                {
+                                    Q.Add(item);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            if (w is null)
+                            {
+                                var label = new NodeLabel(A.LR0.Production.Left, i, i);
+                                if (!V.TryGetValue(label, out v))
+                                {
+                                    v = new Node(label);
+                                    V[label] = v;
+                                }
+
+                                w = v;
+
+                                var packNode = new PackNode(null, null);
+                                if (!w.Children.Contains(packNode))
+                                {
+                                    w.Children.Add(packNode);
+                                }
+                            }
+
+                            if (h == i)
+                            {
+                                H.Add(A.LR0.Production.Left, w);
+                            }
+
+                            foreach (var item in E[h].Where(i => !i.LR0.IsFinished && i.LR0.Current == A.LR0.Production.Left))
+                            {
+                                var y = MakeNode(item.LR0.Step(), item.Start, i, item.Node, w, V);
+                                var delta = item.LR0.Production.Right.Skip(item.LR0.Position + 1).ToArray();
+                                var newItem = new EarleyItem(item.LR0.Step(), item.Start, y);
+                                if (IsInSigmaIndexN(delta) && !E[i].Contains(newItem))
+                                {
+                                    E[i].Add(newItem);
+                                    R.Add(newItem);
+                                }
+                                if (delta.Length > 0 && tokens.Count > i && delta[0] == tokens[i])
+                                {
+                                    Q.Add(newItem);
+                                }
                             }
                         }
                     }
 
-                    return sets.Last();
-                }
+                    V.Clear();
+                    var token = tokens.Count > i ? tokens[i] : null;
+                    var vLabel = new NodeLabel(token, i, i + 1);
+                    v = new Node(vLabel);
 
-                private void Complete(State state, int k)
-                {
-                    foreach (var pastState in sets[state.OriginPosition]
-                        .Where(s => !s.IsFinished && s.Current == state.Production.Production.Left))
+                    while (!Q.IsEmpty)
                     {
-                        var label = new SPPFNodeLabel(pastState.Production, pastState.OriginPosition, k);
-                        var newNode = GetOrCreateNode(label);
-                        var newState = new State(
-                            pastState.Production with
-                            {
-                                ProductionPosition = pastState.Production.ProductionPosition + 1
-                            },
-                            pastState.OriginPosition,
-                            newNode);
+                        var A = Q.Remove(item => item.LR0.Current == tokens[i]);
+                        var h = A.Start;
+                        var w = A.Node;
 
-                        newNode.Children.Add(new SPPFPackedNode(newNode, pastState.Production, state.Node, pastState.Production.Production));
+                        var y = MakeNode(A.LR0.Step(), h, i + 1, w, v, V);
 
-                        sets[k].Add(newState);
+                        var beta = A.LR0.Production.Right.Skip(A.LR0.Position + 1).ToArray();
+
+                        if (IsInSigmaIndexN(beta))
+                        {
+                            E[i + 1].Add(new(A.LR0.Step(), h, y));
+                        }
+
+                        if (beta.Length > 0 && tokens.Count > i + 1 && beta[0] == tokens[i + 1])
+                        {
+                            Q_.Add(new(A.LR0.Step(), h, y));
+                        }
                     }
                 }
 
-                private SPPFSymbolNode GetOrCreateNode(SPPFNodeLabel label)
+                return E.Last()
+                    .Where(i => i.LR0.IsFinished && i.LR0.Production.Left == grammar.Start && i.Start == 0)
+                    .Select(i => i.Node);
+            }
+
+            private bool IsInSigmaIndexN(Symbol[] word) => word.Length == 0 || word[0] is NonTerminalSymbol;
+
+            private Node MakeNode(LR0Item lr0, int j, int i, Node? w, Node v, Dictionary<NodeLabel, Node> V)
+            {
+                var s = lr0.IsFinished ? (object)lr0.Production.Left : lr0;
+                if (lr0.Position == 1 && !lr0.IsFinished)
                 {
-                    if (!nodes.TryGetValue(label, out var node))
+                    return v;
+                }
+                else
+                {
+                    var label = new NodeLabel(s, j, i);
+                    if (!V.TryGetValue(label, out var y))
                     {
-                        node = new SPPFSymbolNode(label, new());
-                        nodes[label] = node;
+                        y = new Node(label);
+                        V[label] = y;
                     }
 
-                    return node;
-                }
-
-                private void Predict(State state, int k)
-                {
-                    var currentSymbol = state.Current;
-                    foreach (var production in grammar.Productions.Where(p => p.Left == currentSymbol))
+                    var packNode = new PackNode(w, v);
+                    if (w is null && !y.Children.Contains(packNode))
                     {
-                        sets[k].Add(new(new(production, 0), k, null));
+                        y.Children.Add(packNode);
                     }
-                }
 
-                private void Scan(State state, int k, IReadOnlyList<TerminalSymbol> terminalSymbols)
-                {
-                    var currentSymbol = state.Current;
-                    if (k < terminalSymbols.Count && terminalSymbols[k] == currentSymbol)
+                    if (w is not null && !y.Children.Contains(packNode))
                     {
-                        var label = new SPPFNodeLabel(currentSymbol, k, k + 1);
-                        var newNode = GetOrCreateNode(label);
-                        var newState = new State(
-                            state.Production with
-                            {
-                                ProductionPosition = state.Production.ProductionPosition + 1,
-                            },
-                            state.OriginPosition,
-                            newNode);
+                        y.Children.Add(packNode);
+                    }
 
-                        newNode.Children.Add(new SPPFPackedNode(newNode, state.Production, state.Node, terminalSymbols[k]));
-
-                        sets[k + 1].Add(newState);
-                    };
+                    return y;
                 }
             }
-        }
-
-        [DebuggerDisplay("Count = {Count,nq}")]
-        private class OrderedSet<T> : IEnumerable<T>
-        {
-            private readonly List<T> list = new();
-
-            public int Count => list.Count;
-
-            public T this[int index] => list[index];
-
-            public bool Add(T item)
-            {
-                if (list.Contains(item))
-                    return false;
-                list.Add(item);
-                return true;
-            }
-
-            public IEnumerator<T> GetEnumerator() => new Enumerator(this);
-
-            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-
-            private class Enumerator : IEnumerator<T>
-            {
-                public readonly OrderedSet<T> set;
-
-                private int nextIndex = 0;
-
-                public Enumerator(OrderedSet<T> set)
-                {
-                    this.set = set;
-                }
-
-                public T Current => set.list[nextIndex - 1];
-
-                object? IEnumerator.Current => Current;
-
-                public void Dispose()
-                {
-                }
-
-                public bool MoveNext()
-                {
-                    if (nextIndex >= set.list.Count)
-                        return false;
-
-                    nextIndex++;
-                    return true;
-                }
-
-                public void Reset() => nextIndex = 0;
-            }
-        }
-
-        private class State
-        {
-            public State(ProductionState production, int originPosition, SPPFSymbolNode? node)
-            {
-                this.Production = production;
-                this.OriginPosition = originPosition;
-                this.Node = node;
-            }
-
-            public Symbol Current => Production.Production.Right[Production.ProductionPosition];
-
-            public bool IsFinished => Production.ProductionPosition == Production.Production.Right.Length;
-
-            public SPPFSymbolNode? Node { get; set; }
-
-            public int OriginPosition { get; }
-
-            public ProductionState Production { get; }
-
-            public override bool Equals(object obj)
-            {
-                if (ReferenceEquals(this, obj))
-                    return true;
-
-                if (obj is not State other)
-                    return false;
-
-                return Production == other.Production
-                    && OriginPosition == other.OriginPosition;
-            }
-
-            public override int GetHashCode()
-                => Production.GetHashCode()
-                    ^ OriginPosition.GetHashCode();
-
-            public override string ToString()
-                => $"({Production}, {OriginPosition})";
         }
     }
 }
