@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 
@@ -8,7 +9,21 @@ namespace DarkLink.ParserGen.Parsing
 {
     internal static class Earley
     {
-        private record State(Production Production, int ProductionPosition, int OrginPosition);
+        private record ProductionState(Production Production, int ProductionPosition)
+        {
+            public override string ToString()
+                => $"{Production.Left} -> {(Production.Right.Length == 0 ? "ε" : string.Join(" ", Production.Right.Select((s, i) => (ProductionPosition == i ? "•" : string.Empty) + s.Name)))}" + (ProductionPosition == Production.Right.Length ? "•" : string.Empty);
+        }
+
+        private record State(ProductionState Production, int OriginPosition)
+        {
+            public override string ToString()
+                => $"({Production}, {OriginPosition})";
+
+            public bool IsFinished => Production.ProductionPosition == Production.Production.Right.Length;
+
+            public Symbol Current => Production.Production.Right[Production.ProductionPosition];
+        }
 
         public class Parser
         {
@@ -27,40 +42,44 @@ namespace DarkLink.ParserGen.Parsing
             {
                 var terminalSymbolList = terminalSymbols.ToList();
                 var sets = Init(terminalSymbolList);
-                sets[0].Add(new(startProduction, 0, 0));
+                sets[0].Add(new(new(startProduction, 0), 0));
 
                 for (var k = 0; k < sets.Length; k++)
                 {
                     for (var i = 0; i < sets[k].Count; i++)
                     {
                         var state = sets[k][i];
-                        if (!Finished(state))
+                        if (!state.IsFinished)
                         {
-                            if (NextElementOf(state) is NonTerminalSymbol)
-                                Predictor(state, k, sets);
+                            if (state.Current is NonTerminalSymbol)
+                                Predict(state, k, sets[k]);
                             else
-                                Scanner(state, k, terminalSymbolList, sets);
+                                Scan(state, k, terminalSymbolList, sets[k + 1]);
                         }
                         else
                         {
-                            Completer(state, k, sets);
+                            Complete(state, k, sets);
                         }
                     }
                 }
 
-                return sets;
+                return sets.Last();
             }
 
-            private void Completer(State state, int k, OrderedSet<State>[] sets)
+            private void Complete(State state, int k, OrderedSet<State>[] sets)
             {
-                foreach (var pastState in sets[state.OrginPosition]
-                    .Where(s => s.Production.Right.Length > s.ProductionPosition && s.Production.Right[s.ProductionPosition] == state.Production.Left))
+                foreach (var pastState in sets[state.OriginPosition]
+                    .Where(s => !s.IsFinished && s.Current == state.Production.Production.Left))
                 {
-                    sets[k].Add(pastState with { ProductionPosition = pastState.ProductionPosition + 1 });
+                    sets[k].Add(pastState with
+                    {
+                        Production = pastState.Production with
+                        {
+                            ProductionPosition = pastState.Production.ProductionPosition + 1
+                        }
+                    });
                 }
             }
-
-            private bool Finished(State state) => state.ProductionPosition == state.Production.Right.Length;
 
             private OrderedSet<State>[] Init(IReadOnlyList<TerminalSymbol> terminalSymbols)
             {
@@ -72,25 +91,30 @@ namespace DarkLink.ParserGen.Parsing
                 return sets;
             }
 
-            private Symbol NextElementOf(State state) => state.Production.Right[state.ProductionPosition];
-
-            private void Predictor(State state, int k, OrderedSet<State>[] sets)
+            private void Predict(State state, int k, OrderedSet<State> set)
             {
-                var currentSymbol = state.Production.Right[state.ProductionPosition];
+                var currentSymbol = state.Current;
                 foreach (var production in grammar.Productions.Where(p => p.Left == currentSymbol))
                 {
-                    sets[k].Add(new(production, 0, k));
+                    set.Add(new(new(production, 0), k));
                 }
             }
 
-            private void Scanner(State state, int k, IReadOnlyList<TerminalSymbol> terminalSymbols, OrderedSet<State>[] sets)
+            private void Scan(State state, int k, IReadOnlyList<TerminalSymbol> terminalSymbols, OrderedSet<State> nextSet)
             {
-                var currentSymbol = NextElementOf(state);
+                var currentSymbol = state.Current;
                 if (k < terminalSymbols.Count && terminalSymbols[k] == currentSymbol)
-                    sets[k + 1].Add(state with { ProductionPosition = state.ProductionPosition + 1 });
+                    nextSet.Add(state with
+                    {
+                        Production = state.Production with
+                        {
+                            ProductionPosition = state.Production.ProductionPosition + 1
+                        }
+                    });
             }
         }
 
+        [DebuggerDisplay("Count = {Count,nq}")]
         private class OrderedSet<T> : IEnumerable<T>
         {
             private readonly List<T> list = new();
