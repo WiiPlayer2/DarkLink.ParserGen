@@ -83,7 +83,7 @@ namespace DarkLink.ParserGen.Parsing
                                     E[i].Add(item);
                                     R.Add(item);
                                 }
-                                if (production.Right.Length > 0 && production.Right[0] == tokens[i + 1])
+                                if (production.Right.Length > 0 && tokens.Count > i && production.Right[0] == tokens[i])
                                 {
                                     Q.Add(item);
                                 }
@@ -100,7 +100,7 @@ namespace DarkLink.ParserGen.Parsing
                                     E[i].Add(item);
                                     R.Add(item);
                                 }
-                                if (beta.Length > 0 && beta[0] == tokens[i + 1])
+                                if (beta.Length > 0 && beta[0] == tokens[i])
                                 {
                                     Q.Add(item);
                                 }
@@ -131,7 +131,7 @@ namespace DarkLink.ParserGen.Parsing
                                 H.Add(A.s.Production.Left, w);
                             }
 
-                            foreach (var item in E[h].Where(i => i.s.Current == A.s.Production.Left))
+                            foreach (var item in E[h].Where(i => !i.s.IsFinished && i.s.Current == A.s.Production.Left))
                             {
                                 var y = MakeNode(item.s.Step(), item.j, i, item.w, w, V);
                                 var delta = item.s.Production.Right.Skip(item.s.Position + 1).ToArray();
@@ -141,7 +141,7 @@ namespace DarkLink.ParserGen.Parsing
                                     E[i].Add(newItem);
                                     R.Add(newItem);
                                 }
-                                if (delta.Length > 0 && delta[0] == tokens[i + 1])
+                                if (delta.Length > 0 && tokens.Count > i && delta[0] == tokens[i])
                                 {
                                     Q.Add(item);
                                 }
@@ -150,13 +150,13 @@ namespace DarkLink.ParserGen.Parsing
                     }
 
                     V.Clear();
-                    var token = tokens.Count > i + 1 ? tokens[i + 1] : null;
+                    var token = tokens.Count > i ? tokens[i] : null;
                     var vLabel = new NodeLabel(token, i, i + 1);
                     v = new Node(vLabel);
 
                     while (!Q.IsEmpty)
                     {
-                        var A = Q.Remove(item => item.s.Current == tokens[i + 1]);
+                        var A = Q.Remove(item => item.s.Current == tokens[i]);
                         var h = A.j;
                         var w = A.w;
 
@@ -169,7 +169,7 @@ namespace DarkLink.ParserGen.Parsing
                             E[i + 1].Add(new(A.s.Step(), h, y));
                         }
 
-                        if (beta.Length > 0 && beta[0] == tokens[i + 2])
+                        if (beta.Length > 0 && beta[0] == tokens[i + 1])
                         {
                             Q_.Add(new(A.s.Step(), h, y));
                         }
@@ -193,7 +193,7 @@ namespace DarkLink.ParserGen.Parsing
                 else
                 {
                     var label = new NodeLabel(s, j, i);
-                    if (V.TryGetValue(label, out var y))
+                    if (!V.TryGetValue(label, out var y))
                     {
                         y = new Node(label);
                         V[label] = y;
