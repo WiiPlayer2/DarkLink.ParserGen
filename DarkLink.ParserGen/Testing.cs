@@ -9,7 +9,7 @@ namespace DarkLink.ParserGen
     {
         public static void Test()
         {
-            var grammar = new Grammar(
+            var grammar1 = new Grammar(
                 new HashSet<NonTerminalSymbol>(new NonTerminalSymbol[]
                 {
                     new("S"),
@@ -26,8 +26,7 @@ namespace DarkLink.ParserGen
                     new(new("S"), Array.Empty<Symbol>()),
                 }),
                 new("S"));
-
-            var terminals = new TerminalSymbol[]
+            var terminals1 = new TerminalSymbol[]
             {
                 new("a"),
                 new("a"),
@@ -37,11 +36,48 @@ namespace DarkLink.ParserGen
                 new("a"),
             };
 
+            var grammar2 = new Grammar(
+                new HashSet<NonTerminalSymbol>(new NonTerminalSymbol[]
+                {
+                    new("S"),
+                    new("NP"),
+                    new("VP"),
+                    new("PP"),
+                }),
+                new HashSet<TerminalSymbol>(new TerminalSymbol[]
+                {
+                    new("n"),
+                    new("d"),
+                    new("p"),
+                    new("v"),
+                }),
+                new HashSet<Production>(new Production[]
+                {
+                    new(new("S"), new Symbol[]{ new NonTerminalSymbol("NP"), new NonTerminalSymbol("VP") }),
+                    new(new("NP"), new Symbol[]{ new TerminalSymbol("n") }),
+                    new(new("NP"), new Symbol[]{ new TerminalSymbol("d"), new TerminalSymbol("n") }),
+                    new(new("NP"), new Symbol[]{ new NonTerminalSymbol("NP"), new NonTerminalSymbol("PP") }),
+                    new(new("VP"), new Symbol[]{ new NonTerminalSymbol("VP"), new NonTerminalSymbol("PP") }),
+                    new(new("VP"), new Symbol[]{ new TerminalSymbol("v"), new NonTerminalSymbol("NP") }),
+                    new(new("PP"), new Symbol[]{ new TerminalSymbol("p"), new NonTerminalSymbol("NP") }),
+                }),
+                new("S"));
+            var terminals2 = new TerminalSymbol[]
+            {
+                new("n"),
+                new("v"),
+                new("d"),
+                new("n"),
+                new("p"),
+                new("d"),
+                new("n"),
+            };
+
             //var glrParser = new GLR.Parser(grammar);
             //var glrResults = glrParser.Parse(terminals);
 
-            var earleyParser = new Earley.Parser(grammar);
-            var earleyResults = earleyParser.Parse(terminals);
+            var earleyParser = new Earley.Parser(grammar2);
+            var earleyResults = earleyParser.Parse(terminals2);
         }
     }
 }
