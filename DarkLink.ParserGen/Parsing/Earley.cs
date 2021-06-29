@@ -269,6 +269,29 @@ namespace DarkLink.ParserGen.Parsing
                 onCycleRetreat = true;
             }
 
+            protected override (bool, object?) TransformNonTerminalNode(SymbolNode node, List<object> data)
+            {
+                if (!successfulVisits.Contains(node))
+                    return (false, default);
+
+                CheckCycle(node);
+                successfulVisits.Remove(node);
+
+                if (node is not IntermediateNode)
+                {
+                    data = CollapseAmbiguity(data);
+                    return CallAmbiguityFunc(node, data);
+                }
+                else
+                {
+                    if (data.Count > 1)
+                    {
+                        throw new NotImplementedException();
+                    }
+                    return (true, data[0]);
+                }
+            }
+
             protected override (bool, object?) TransformPackNode(PackNode node, List<object> data)
             {
                 CheckCycle(node);
@@ -296,29 +319,6 @@ namespace DarkLink.ParserGen.Parsing
                 if (node.Parent is IntermediateNode)
                     return (true, children);
                 return CallRuleFunc(node, children);
-            }
-
-            protected override (bool, object?) TransformSymbolNode(SymbolNode node, List<object> data)
-            {
-                if (!successfulVisits.Contains(node))
-                    return (false, default);
-
-                CheckCycle(node);
-                successfulVisits.Remove(node);
-
-                if (node is not IntermediateNode)
-                {
-                    data = CollapseAmbiguity(data);
-                    return CallAmbiguityFunc(node, data);
-                }
-                else
-                {
-                    if (data.Count > 1)
-                    {
-                        throw new NotImplementedException();
-                    }
-                    return (true, data[0]);
-                }
             }
 
             protected override IEnumerable<Node> VisitNonTerminalNodeIn(NonTerminalNode node)
@@ -438,14 +438,22 @@ namespace DarkLink.ParserGen.Parsing
                 return null;
             }
 
-            protected virtual (bool, object?) TransformPackNode(PackNode node, List<object> data)
+            protected virtual (bool, object?) TransformIntermediateNode(IntermediateNode node, List<object> data)
                 => (true, node);
 
-            protected virtual (bool, object?) TransformSymbolNode(SymbolNode node, List<object> data)
+            protected virtual (bool, object?) TransformNonTerminalNode(NonTerminalNode node, List<object> data)
+                => (true, node);
+
+            protected virtual (bool, object?) TransformPackNode(PackNode node, List<object> data)
                 => (true, node);
 
             protected virtual (bool, object?) TransformTerminalNode(TerminalNode node, List<object> data)
                 => (true, node);
+
+            protected override IEnumerable<Node> VisitIntermediateNodeIn(IntermediateNode node)
+            {
+                throw new NotImplementedException();
+            }
 
             protected override IEnumerable<Node> VisitNonTerminalNodeIn(NonTerminalNode node)
             {
@@ -457,7 +465,7 @@ namespace DarkLink.ParserGen.Parsing
             protected override void VisitNonTerminalNodeOut(NonTerminalNode node)
             {
                 nodeStack.Pop();
-                var (keep, transformed) = TransformSymbolNode(node, data[node]);
+                var (keep, transformed) = TransformNonTerminalNode(node, data[node]);
                 if (keep)
                     data[nodeStack.Peek()].Add(transformed);
                 data.Remove(node);
@@ -498,6 +506,12 @@ namespace DarkLink.ParserGen.Parsing
             {
             }
 
+            protected abstract IEnumerable<Node> VisitIntermediateNodeIn(IntermediateNode node);
+
+            protected virtual void VisitIntermediateNodeOut(IntermediateNode node)
+            {
+            }
+
             protected abstract IEnumerable<Node> VisitNonTerminalNodeIn(NonTerminalNode node);
 
             protected virtual void VisitNonTerminalNodeOut(NonTerminalNode node)
@@ -510,7 +524,7 @@ namespace DarkLink.ParserGen.Parsing
             {
             }
 
-            protected void VisitTerminalNode(TerminalNode node)
+            protected virtual void VisitTerminalNode(TerminalNode node)
             {
             }
 
@@ -536,6 +550,7 @@ namespace DarkLink.ParserGen.Parsing
 
                 var nextNodes = node switch
                 {
+                    IntermediateNode intermediateNode => VisitIntermediateNodeIn(intermediateNode),
                     NonTerminalNode nonTerminalNode => VisitNonTerminalNodeIn(nonTerminalNode),
                     PackNode packNode => VisitPackNodeIn(packNode),
                     _ => Enumerable.Empty<Node>(),
@@ -546,6 +561,10 @@ namespace DarkLink.ParserGen.Parsing
 
                 switch (node)
                 {
+                    case IntermediateNode intermediateNode:
+                        VisitIntermediateNodeOut(intermediateNode);
+                        break;
+
                     case NonTerminalNode nonTerminalNode:
                         VisitNonTerminalNodeOut(nonTerminalNode);
                         break;
