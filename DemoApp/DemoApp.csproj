@@ -8,11 +8,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Testing.parser" />
+    <None Remove="Testing.bnf.parser" />
   </ItemGroup>
 
   <ItemGroup>
-    <AdditionalFiles Include="Testing.parser" />
+    <AdditionalFiles Include="Testing.bnf.parser" />
   </ItemGroup>
 
   <ItemGroup>

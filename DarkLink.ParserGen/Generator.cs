@@ -1,4 +1,5 @@
-﻿using DarkLink.ParserGen.Formats.Simple;
+﻿using DarkLink.ParserGen.Formats.Bnf;
+using DarkLink.ParserGen.Formats.Simple;
 using DarkLink.ParserGen.Parsing;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
@@ -31,7 +32,13 @@ namespace DarkLink.ParserGen
             {
                 context.CancellationToken.ThrowIfCancellationRequested();
 
-                var config = SimpleParser.Parse(context, additionalText);
+                var secondExtension = Path.GetExtension(Path.GetFileNameWithoutExtension(additionalText.Path)).ToLowerInvariant();
+
+                var config = secondExtension switch
+                {
+                    ".bnf" => BnfParser.Parse(context, additionalText),
+                    _ => SimpleParser.Parse(context, additionalText),
+                };
                 if (config is null)
                     continue;
 
