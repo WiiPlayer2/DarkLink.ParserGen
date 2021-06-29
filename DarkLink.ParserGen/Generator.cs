@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace DarkLink.ParserGen
 {
@@ -16,8 +17,16 @@ namespace DarkLink.ParserGen
 
         public void Execute(GeneratorExecutionContext context)
         {
-            foreach (var additionalText in context.AdditionalFiles
-                .Where(o => string.Equals(Path.GetExtension(o.Path), ".parser", StringComparison.InvariantCultureIgnoreCase)))
+            var parserFiles = context.AdditionalFiles
+                .Where(o => string.Equals(Path.GetExtension(o.Path), ".parser", StringComparison.InvariantCultureIgnoreCase))
+                .ToList();
+
+            if (parserFiles.Count == 0)
+                return;
+
+            AddParsingCode(context);
+
+            foreach (var additionalText in parserFiles)
             {
                 context.CancellationToken.ThrowIfCancellationRequested();
 
@@ -31,7 +40,20 @@ namespace DarkLink.ParserGen
 
         public void Initialize(GeneratorInitializationContext context)
         {
-            Testing.Test();
+            //Testing.Test();
+        }
+
+        private void AddParsingCode(GeneratorExecutionContext context)
+        {
+            var assembly = typeof(Generator).Assembly;
+            var files = assembly.GetManifestResourceNames()
+                .Where(o => Regex.IsMatch(o, @"DarkLink\.ParserGen\.Parsing\..*\.cs"));
+            foreach (var file in files)
+            {
+                using var stream = assembly.GetManifestResourceStream(file);
+                var sourceText = SourceText.From(stream, sourceEncoding);
+                context.AddSource(file, sourceText);
+            }
         }
 
         private void AddSource(GeneratorExecutionContext context, string hintName, Action<StringWriter> write)
