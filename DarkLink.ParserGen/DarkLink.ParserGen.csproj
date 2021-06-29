@@ -42,6 +42,9 @@
     <Compile Update="Parsing\Parser.ForestToParseTree.cs">
       <DependentUpon>Parser.cs</DependentUpon>
     </Compile>
+    <Compile Update="Parsing\Lexer.Rules.cs">
+      <DependentUpon>Parsing\Lexer.cs</DependentUpon>
+    </Compile>
   </ItemGroup>
 
 </Project>

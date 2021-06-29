@@ -65,5 +65,5 @@ namespace DarkLink.ParserGen.Parsing
         ISet<Production<TNT>> Productions,
         NonTerminalSymbol<TNT> Start);
 
-    internal record Token<TT>(TerminalSymbol<TT> Symbol, string Value, int Index);
+    internal record Token<TT>(TerminalSymbol<TT>? Symbol, string Value, int Index);
 }
