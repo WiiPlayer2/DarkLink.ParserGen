@@ -7,9 +7,9 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 
-namespace DarkLink.ParserGen
+namespace DarkLink.ParserGen.Formats.Simple
 {
-    internal static class ConfigParser
+    internal static class SimpleParser
     {
         private static Regex kRegex = new(@"#k (?<k>\d+)");
 

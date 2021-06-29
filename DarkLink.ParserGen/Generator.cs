@@ -1,4 +1,5 @@
-﻿using DarkLink.ParserGen.Parsing;
+﻿using DarkLink.ParserGen.Formats.Simple;
+using DarkLink.ParserGen.Parsing;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
 using System;
@@ -30,7 +31,7 @@ namespace DarkLink.ParserGen
             {
                 context.CancellationToken.ThrowIfCancellationRequested();
 
-                var config = ConfigParser.Parse(context, additionalText);
+                var config = SimpleParser.Parse(context, additionalText);
                 if (config is null)
                     continue;
 
@@ -40,7 +41,6 @@ namespace DarkLink.ParserGen
 
         public void Initialize(GeneratorInitializationContext context)
         {
-            //Testing.Test();
         }
 
         private void AddParsingCode(GeneratorExecutionContext context)
