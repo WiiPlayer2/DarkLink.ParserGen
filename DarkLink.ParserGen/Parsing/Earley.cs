@@ -65,10 +65,9 @@ namespace DarkLink.ParserGen.Parsing
             {
                 var n = tokens.Count;
                 var E = Enumerable.Repeat(0, tokens.Count + 1)
-                    .Select(_ => new Set<EarleyItem>())
+                    .Select(_ => new HashSet<EarleyItem>())
                     .ToArray();
-                var R = new Set<EarleyItem>();
-                var Q_ = new Set<EarleyItem>();
+                var Q_ = new HashSet<EarleyItem>();
                 var V = new Dictionary<NodeLabel, BranchNode>();
                 BranchNode? v;
 
@@ -83,11 +82,11 @@ namespace DarkLink.ParserGen.Parsing
                 for (var i = 0; i <= n; i++)
                 {
                     var H = new Dictionary<Symbol, BranchNode>();
-                    R = E[i].Clone();
+                    var R = new HashSet<EarleyItem>(E[i]);
                     var Q = Q_;
                     Q_ = new();
 
-                    while (!R.IsEmpty)
+                    while (!R.IsEmpty())
                     {
                         var A = R.Remove();
                         var h = A.Start;
@@ -176,7 +175,7 @@ namespace DarkLink.ParserGen.Parsing
                     var vLabel = new TerminalNodeLabel(token, i, i + 1);
                     var v2 = new TerminalNode(vLabel);
 
-                    while (!Q.IsEmpty)
+                    while (!Q.IsEmpty())
                     {
                         var A = Q.Remove(item => item.LR0.Current == tokens[i]);
                         var h = A.Start;

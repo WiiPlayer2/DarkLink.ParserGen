@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace DarkLink.ParserGen.Parsing
@@ -48,5 +49,17 @@ namespace DarkLink.ParserGen.Parsing
 
     internal static class Extensions
     {
+        public static bool IsEmpty<T>(this IEnumerable<T> sequence)
+            => !sequence.Any();
+
+        public static T Remove<T>(this ICollection<T> collection, Func<T, bool> predicate)
+        {
+            var item = collection.First(predicate);
+            collection.Remove(item);
+            return item;
+        }
+
+        public static T Remove<T>(this ICollection<T> collection)
+            => collection.Remove(_ => true);
     }
 }
