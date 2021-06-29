@@ -1,6 +1,7 @@
 ﻿using DarkLink.ParserGen.Parsing;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace DarkLink.ParserGen
@@ -78,6 +79,9 @@ namespace DarkLink.ParserGen
 
             var earley2Parser = new Earley.Parser(grammar1);
             var earley2Results = earley2Parser.Parse(terminals1);
+
+            var forestToTree = new Earley.ForestToParseTree<object>(new());
+            var result = forestToTree.Transform(earley2Results.First());
         }
     }
 }

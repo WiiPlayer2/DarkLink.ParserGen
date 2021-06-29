@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
@@ -14,7 +15,7 @@ namespace DarkLink.ParserGen.Parsing
 
         private record IntermediateNodeLabel(LR0Item LR0Item, int Start, int End) : NodeLabel(LR0Item, Start, End);
 
-        private abstract record Node();
+        public abstract record Node();
 
         private abstract record SymbolNode() : Node;
 
@@ -60,7 +61,7 @@ namespace DarkLink.ParserGen.Parsing
                 this.grammar = grammar;
             }
 
-            public object Parse(IReadOnlyList<TerminalSymbol> tokens)
+            public IReadOnlyList<Node> Parse(IReadOnlyList<TerminalSymbol> tokens)
             {
                 var n = tokens.Count;
                 var E = Enumerable.Repeat(0, tokens.Count + 1)
@@ -198,18 +199,10 @@ namespace DarkLink.ParserGen.Parsing
                 }
 
                 var lastSet = E.Last();
-                var completedNodes = lastSet.Where(i => i.LR0.IsFinished && i.LR0.Production.Left == grammar.Start && i.Start == 0)
+                var completedNodes = lastSet
+                    .Where(i => i.LR0.IsFinished && i.LR0.Production.Left == grammar.Start && i.Start == 0)
                     .Select(i => i.Node)
                     .ToList();
-
-                var visitor = new ForestToParseTree<object>(new()
-                {
-                    { new Production(new("S"), new(new TerminalSymbol("a"), new NonTerminalSymbol("S"), new TerminalSymbol("a"))), list => list },
-                    { new Production(new("S"), new(new TerminalSymbol("b"), new NonTerminalSymbol("S"), new TerminalSymbol("b"))), list => list },
-                    { new Production(new("S"), Word.Empty), list => list },
-                });
-                var transform = visitor.Transform(completedNodes.First());
-
                 return completedNodes;
             }
 
