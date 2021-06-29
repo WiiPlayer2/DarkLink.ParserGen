@@ -51,7 +51,7 @@ namespace DarkLink.ParserGen
             foreach (var file in files)
             {
                 using var stream = assembly.GetManifestResourceStream(file);
-                var sourceText = SourceText.From(stream, sourceEncoding);
+                var sourceText = SourceText.From(stream, sourceEncoding, canBeEmbedded: true);
                 context.AddSource(file, sourceText);
             }
         }
@@ -76,17 +76,17 @@ using System.Diagnostics;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Linq;
+using DarkLink.ParserGen.Parsing;
 
 namespace {config.Type.Namespace}
 {{
-    {config.Type.Modifier} static class {config.Type.Name}
+    internal static class {config.Type.Name}
     {{");
 
-                GenerateTokenType(writer, config);
-                GenerateToken(writer);
-                GenerateLexer(writer, config);
-                GenerateSymbolType(writer, config);
-                GenerateParser(writer, config, context);
+                GenerateTerminals(writer, config);
+                GenerateNonTerminals(writer, config);
+                GenerateProductions(writer, config);
+                GenerateParser(writer, config);
 
                 writer.WriteLine($@"
     }}

@@ -36,8 +36,11 @@ namespace DarkLink.ParserGen.Parsing
 
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
+        public T? GetValueOrDefault()
+            => Match<T?>(_ => _, () => default);
+
         public Option<TResult> Map<TResult>(Func<T, TResult> map)
-                            => Match<Option<TResult>>(v => map(v), () => Option.None);
+                                    => Match<Option<TResult>>(v => map(v), () => Option.None);
 
         public TResult Match<TResult>(Func<T, TResult> onSome, Func<TResult> onNone)
                     => isSome ? onSome(value) : onNone.Invoke();
@@ -81,6 +84,9 @@ namespace DarkLink.ParserGen.Parsing
         }
 
         public static NonTerminalSymbol<T> NT<T>(T value) => new NonTerminalSymbol<T>(value);
+
+        public static Production<TNT> P<TNT>(TNT left, params Symbol[] right)
+            => new Production<TNT>(NT(left), new Word(right));
 
         public static TerminalSymbol<T> T<T>(T value) => new TerminalSymbol<T>(value);
     }

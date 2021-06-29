@@ -11,7 +11,7 @@ namespace DemoApp
         private static void Main(string[] args)
         {
             var content = @"<syntax>         ::= <rule> | <rule> <syntax>";
-            var parser = new Testing.Parser();
+            var parser = new Testing.Parser<object>(new());
             var rootNode = parser.Parse(content);
 
             Console.WriteLine($"{rootNode}");

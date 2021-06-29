@@ -1,495 +1,55 @@
-﻿using Microsoft.CodeAnalysis;
-using System;
-using System.Collections;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Threading;
+using System.Text;
 
 namespace DarkLink.ParserGen
 {
     partial class Generator
     {
-        private bool CheckMap(List<(string Symbol, string[] Tokens, IReadOnlyList<ParserRuleTarget> Targets)> map)
+        private void GenerateParser(TextWriter writer, Config config)
         {
-            var list = new List<VarArr<string>>();
-            foreach (var cell in map)
-            {
-                var entry = new VarArr<string>(new[] { cell.Symbol }.Concat(cell.Tokens.Where(o => o != "EMPTY")));
-                if (list.Any(o => StartsWith(o, entry) || list.Any(o => StartsWith(entry, o))))
-                {
-                    Console.WriteLine($"Check {cell.Symbol} -> {new VarArr<string>(entry.Targets.Skip(1))}");
-                    return false;
-                }
-
-                list.Add(entry);
-            }
-
-            return true;
-
-            bool StartsWith<T>(VarArr<T> arr1, VarArr<T> arr2)
-            {
-                for (var i = 0; i < arr2.Targets.Length; i++)
-                {
-                    if (!Equals(arr1.Targets[i], arr2.Targets[i]))
-                        return false;
-                }
-                return true;
-            }
-        }
-
-        private List<(string Symbol, string[] Tokens, IReadOnlyList<ParserRuleTarget> Targets)> ConstructLLParsingTable(Config config, int k, CancellationToken cancellationToken)
-        {
-            var emptyTarget = new[] { new ParserRuleTarget("EMPTY", true) };
-
-            var firsts = new SetOf<ParserRuleTargets, string>(k);
-            var follows = new SetOf<string, string>(k);
-            var wordSet = new SpecialSet<ParserRuleTarget>(k);
-
-            firsts[ParserRuleTargets.Empty].Add(VarArr<string>.Empty);
-            foreach (var a in config.Lexer.Tokens)
-            {
-                var target = new ParserRuleTarget(a.Name, true);
-                firsts[new(target)].Add(new(a.Name));
-                wordSet.Add(new(target));
-            }
-            foreach (var rule in config.Parser.Rules)
-            {
-                wordSet.Add(new(new ParserRuleTarget(rule.Name, false)));
-            }
-
-            bool changed;
-
-            do
-            {
-                changed = false;
-                cancellationToken.ThrowIfCancellationRequested();
-
-                foreach (var rule in config.Parser.Rules)
-                {
-                    var key = new ParserRuleTargets(new ParserRuleTarget(rule.Name, false));
-                    var w = new ParserRuleTargets(rule.Targets.Except(emptyTarget)).Limit(k);
-                    changed |= firsts[key].AddRange(firsts[w]);
-                }
-
-                if (k > 1)
-                {
-                    var words = Enumerable.Range(1, k).Select(i => new HashSet<ParserRuleTargets>(GetWords(i))).ToArray();
-                    HandleWords(1, new ParserRuleTargets[k]);
-
-                    void HandleWords(int length, ParserRuleTargets[] currentWords)
-                    {
-                        var index = length - 1;
-                        foreach (var w in words[index])
-                        {
-                            currentWords[index] = w.Limit(length);
-
-                            if (length < currentWords.Length)
-                            {
-                                HandleWords(length + 1, currentWords);
-                            }
-                            else
-                            {
-                                var key = currentWords.Aggregate(ParserRuleTargets.Empty, (acc, curr) => acc + curr).Limit(length);
-                                var setWithEmpty = new SpecialSet<string>(k);
-                                setWithEmpty.Add(VarArr<string>.Empty);
-                                var combinations = currentWords.Aggregate(setWithEmpty, (acc, curr) => acc + firsts[curr]);
-                                changed |= firsts[key].AddRange(combinations);
-                            }
-                        }
-                    }
-
-                    IEnumerable<ParserRuleTargets> GetWords(int k)
-                    {
-                        for (var i = 1; i <= k; i++)
-                        {
-                            foreach (var word in wordSet * k)
-                            {
-                                yield return new ParserRuleTargets(word.Limit(i).Targets);
-                            }
-                        }
-                    }
-                }
-            }
-            while (changed);
-
-            follows[config.Parser.Start].Add(new VarArr<string>(Enumerable.Repeat("END", k)));
-
-            do
-            {
-                changed = false;
-                cancellationToken.ThrowIfCancellationRequested();
-
-                foreach (var rule in config.Parser.Rules)
-                {
-                    for (var i = 0; i < rule.Targets.Count; i++)
-                    {
-                        if (rule.Targets[i].IsToken)
-                            continue;
-
-                        var w = new ParserRuleTargets(rule.Targets.ToArray()[(i + 1)..]).Limit(k);
-                        changed |= follows[rule.Targets[i].Name].AddRange(firsts[w] + follows[rule.Name]);
-                    }
-                }
-            }
-            while (changed);
-
-            var map = new List<(string Symbol, string[] Tokens, IReadOnlyList<ParserRuleTarget> Targets)>();
-            foreach (var rule in config.Parser.Rules)
-            {
-                var w = new ParserRuleTargets(rule.Targets.Except(emptyTarget)).Limit(k);
-                foreach (var tokens in firsts[w] + follows[rule.Name])
-                {
-                    var paddedTokens = tokens.Targets;
-                    if (paddedTokens.Length < k)
-                        paddedTokens = paddedTokens.Concat(Enumerable.Repeat("EMPTY", k - paddedTokens.Length)).ToArray();
-                    map.Add((rule.Name, paddedTokens, rule.Targets));
-                }
-            }
-
-            return map;
-        }
-
-        private void GenerateParser(TextWriter writer, Config config, GeneratorExecutionContext context)
-        {
-            var map = ConstructLLParsingTable(config, config.Parser.K ?? 1, context.CancellationToken);
-            if (!CheckMap(map))
-            {
-                context.ReportDiagnostic(Diagnostic.Create(Diagnostics.FailedToConstructParsingTable, Location.None, config.Parser.K ?? 1));
-                return;
-            }
-
             writer.WriteLine($@"
-        public class Parser
+        public class Parser<T>
         {{
-            public record Symbol();
+            private readonly DarkLink.ParserGen.Parsing.Parser<T, NonTerminals, Terminals> parser;
 
-            public record RuleSymbol(SymbolType Type) : Symbol;
+            private readonly Lexer<Terminals> lexer;
 
-            public record TokenSymbol(TokenType Type) : Symbol;
-
-            public record Rule(SymbolType Type, IReadOnlyList<Symbol> Symbols);
-
-            class RuleTable
+            public Parser(Dictionary<Production<NonTerminals>, Func<object[], T>> callbacks)
             {{
-                private readonly Dictionary<SymbolType, Dictionary<TokenType[], Rule?>> rules = new();
+                var lexerRules = new Dictionary<Terminals, Lexer<Terminals>.Rule>()
+                {{");
 
-                public Rule? this[SymbolType symbolType, TokenType[] tokens]
-                {{
-                    get
-                    {{
-                        if (!rules.ContainsKey(symbolType))
-                            return null;
-                        var row = rules[symbolType];
-
-                        if (!row.ContainsKey(tokens))
-                            return null;
-                        return row[tokens];
-                    }}
-                    set
-                    {{
-                        rules.TryAdd(symbolType, new(TokensComparer.Instance));
-                        rules[symbolType].Add(tokens, value);
-                    }}
-                }}
-            }}
-
-            class TokensComparer : IEqualityComparer<TokenType[]>
-            {{
-                public static TokensComparer Instance {{ get; }} = new TokensComparer();
-
-                private TokensComparer() {{ }}
-
-                public bool Equals(TokenType[]? x, TokenType[]? y)
-                {{
-                    if (ReferenceEquals(x, y))
-                        return true;
-
-                    if(x is null || y is null)
-                        return false;
-
-                    var zip = x.Zip(y, (l, r) => (l, r));
-                    return zip.All(pair => pair.l == pair.r || pair.l == TokenType.EMPTY || pair.r == TokenType.EMPTY);
-                }}
-
-                public int GetHashCode(TokenType[]? obj)
-                    => obj is null ? -1 : 0;
-            }}
-
-            private static readonly RuleTable ruleTable = new();
-
-            private const int K = {config.Parser.K ?? 1};
-
-            static Parser()
-            {{");
-
-            foreach (var (symbol, tokens, targets) in map)
+            foreach (var token in config.Lexer.Tokens)
             {
-                writer.WriteLine($"ruleTable[SymbolType.{symbol}, new[]{{ {string.Join(", ", tokens.Select(o => $"TokenType.{o}"))} }}] = new(SymbolType.{symbol}, new Symbol[] {{ {string.Join(", ", targets.Select(o => o.IsToken ? $"new TokenSymbol(TokenType.{o.Name})" : $"new RuleSymbol(SymbolType.{o.Name})"))} }});");
-            }
-
-            writer.WriteLine($@"
-            }}
-
-            public SymbolNode Parse(string input)
-                => Parse(Lexer.Lex(input));
-
-            public SymbolNode Parse(TextReader reader)
-                => Parse(Lexer.Lex(reader));
-
-            public SymbolNode Parse(Stream stream)
-                => Parse(Lexer.Lex(stream));
-
-            public SymbolNode Parse(IEnumerable<Token> tokens)
-            {{
-                IEnumerable SyntacticAnalysis()
-                {{
-                    var endSymbol = new TokenSymbol(TokenType.END);
-                    var stack = new Stack<Symbol>();
-                    stack.Push(endSymbol);
-                    stack.Push(new RuleSymbol(SymbolType.{config.Parser.Start}));
-
-                    var tokenList = tokens
-                        .Concat(Enumerable.Repeat(new Token(TokenType.END, string.Empty, -1), K))
-                        .ToArray();
-
-                    var position = 0;
-
-                    while (stack.Count > 0)
-                    {{
-                        var symbol = stack.Pop();
-                        var token = tokenList[position];
-
-                        if (symbol is TokenSymbol {{ Type: TokenType.EMPTY }})
-                        {{
-                            yield return new Token(TokenType.EMPTY, string.Empty, token.Index);
-                        }}
-                        else if (symbol is TokenSymbol tokenSymbol)
-                        {{
-                            if (tokenSymbol.Type == token.Type)
-                            {{
-                                position++;
-                                if (tokenSymbol == endSymbol)
-                                    yield break;
-                                else
-                                    yield return token;
-                            }}
-                            else
-                            {{
-                                throw new Exception();
-                            }}
-                        }}
-                        else if (symbol is RuleSymbol ruleSymbol)
-                        {{
-                            var lookAheadTokens = tokenList
-                                .Select(o => o.Type)
-                                .ToArray()[position..(position + K)];
-                            var rule = ruleTable[ruleSymbol.Type, lookAheadTokens];
-                            if (rule is null)
-                                throw new Exception();
-
-                            foreach(var s in rule.Symbols.Reverse())
-                                stack.Push(s);
-
-                            yield return rule;
-                        }}
-                    }}
-                }}
-
-                var stack = new Stack<(Rule Rule, List<Node> Segments)>();
-                var parseStack = new Stack<object>(SyntacticAnalysis().Cast<object>().Reverse());
-
-                do
-                {{
-                    var obj = parseStack.Pop();
-                    if (obj is Token token)
-                        obj = new TokenNode(token);
-
-                    Console.WriteLine(obj);
-
-                    if (obj is Rule rule)
-                    {{
-                        stack.Push((rule, new()));
-                    }}
-                    else if (obj is Node dataNode)
-                    {{
-                        var node = stack.Peek();
-                        node.Segments.Add(dataNode);
-                        if (node.Segments.Count == node.Rule.Symbols.Count)
-                        {{
-                            stack.Pop();
-                            parseStack.Push(new SymbolNode(node.Rule.Type, node.Rule.Symbols.Zip(node.Segments, (l, r) => (l, r)).ToList()));
-                        }}
-                    }}
-                }}
-                while (stack.Count > 0);
-
-                var rootNode = (SymbolNode)parseStack.Pop();
-                return rootNode;
-            }}
-
-            public record Node();
-
-            [DebuggerDisplay(""Token({{Token.Type}}, {{ToString()}})"")]
-            public record TokenNode(Token Token) : Node
-            {{
-                public override string ToString()
-                    => Token.Value;
-            }}
-
-            [DebuggerDisplay(""Symbol({{Type}}, {{ToString()}})"")]
-            public record SymbolNode(SymbolType Type, IReadOnlyList<(Symbol Node, Node Segment)> Segments) : Node
-            {{
-                public override string ToString()
-                    => string.Concat(Segments.Select(o => o.Segment));
-            }}
-        }}
-");
-        }
-
-        private void GenerateSymbolType(TextWriter writer, Config config)
-        {
-            writer.WriteLine($@"
-        public enum SymbolType
-        {{");
-
-            foreach (var symbol in config.Parser.Rules
-                .Select(o => o.Name)
-                .Distinct())
-                writer.WriteLine($"{symbol},");
-
-            writer.WriteLine($@"
-        }}
-");
-        }
-
-        private class ParserRuleTargets : VarArr<ParserRuleTarget>
-        {
-            public ParserRuleTargets(params ParserRuleTarget[] targets)
-                : this(targets.AsEnumerable())
-            {
-            }
-
-            public ParserRuleTargets(IEnumerable<ParserRuleTarget> targets)
-                : base(targets.Except(new[] { new ParserRuleTarget("EMPTY", true) })) { }
-
-            public new static ParserRuleTargets Empty { get; } = new();
-
-            public static ParserRuleTargets operator +(ParserRuleTargets arr1, ParserRuleTargets arr2)
-                            => new((arr1 + (VarArr<ParserRuleTarget>)arr2).Targets);
-
-            public new ParserRuleTargets Limit(int length)
-                => new(base.Limit(length).Targets);
-
-            protected override string ItemToString(ParserRuleTarget item)
-                => $"{(item.IsToken ? "#" : string.Empty)}{item.Name}";
-        }
-
-        private class SetOf<TKey, TValue>
-        {
-            private readonly int limit;
-
-            private readonly Dictionary<TKey, SpecialSet<TValue>> sets = new();
-
-            public SetOf(int limit)
-            {
-                this.limit = limit;
-            }
-
-            public SpecialSet<TValue> this[TKey key]
-            {
-                get
+                var ruleCode = token.Rule switch
                 {
-                    if (!sets.TryGetValue(key, out var set))
-                    {
-                        set = new(limit);
-                        sets.Add(key, set);
-                    }
-
-                    return set;
-                }
-            }
-        }
-
-        private class SpecialSet<T> : HashSet<VarArr<T>>
-        {
-            private readonly int limit;
-
-            public SpecialSet(int limit)
-            {
-                this.limit = limit;
+                    RegexRule regexRule => $"new Lexer<Terminals>.RegexRule(new Regex({Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(regexRule.Regex, true)}))",
+                    LiteralRule literalRule => $"new Lexer<Terminals>.LiteralRule(\"{literalRule.Literal}\")",
+                    _ => throw new NotSupportedException(),
+                };
+                writer.WriteLine($"{{ Terminals.{token.Name}, {ruleCode} }},");
             }
 
-            public static SpecialSet<T> operator *(SpecialSet<T> set, int power)
-            {
-                var acc = new SpecialSet<T>(set.limit);
-                if (power == 0)
-                    return acc;
+            writer.WriteLine($@"
+                }};
+                lexer = new(lexerRules);
+                parser = new(Grammar, callbacks);
+            }}
 
-                acc.Add(VarArr<T>.Empty);
-                for (var i = 0; i < power; i++)
-                {
-                    acc += set;
-                }
-                return acc;
-            }
+            public IEnumerable<T> Parse(string input)
+                => Parse(new StringReader(input));
 
-            public static SpecialSet<T> operator +(SpecialSet<T> set1, SpecialSet<T> set2)
-            {
-                var result = new SpecialSet<T>(Math.Min(set1.limit, set2.limit));
-                foreach (var item1 in set1)
-                    foreach (var item2 in set2)
-                        result.Add(item1 + item2);
-                return result;
-            }
+            public IEnumerable<T> Parse(Stream stream)
+                => Parse(new StreamReader(stream));
 
-            public new bool Add(VarArr<T> item)
-                => base.Add(item.Limit(limit));
-
-            public bool AddRange(IEnumerable<VarArr<T>> items)
-            {
-                var changed = false;
-                foreach (var item in items)
-                    changed |= Add(item);
-                return changed;
-            }
-        }
-
-        private class VarArr<T>
-        {
-            public VarArr(params T[] targets)
-            {
-                Targets = targets;
-            }
-
-            public VarArr(IEnumerable<T> targets)
-                : this(targets.ToArray()) { }
-
-            public static VarArr<T> Empty { get; } = new();
-
-            public T[] Targets { get; }
-
-            public static VarArr<T> operator +(VarArr<T> arr1, VarArr<T> arr2)
-                => new VarArr<T>(arr1.Targets.Concat(arr2.Targets));
-
-            public override bool Equals(object obj)
-            {
-                if (obj is not VarArr<T> other)
-                    return false;
-                return Targets.SequenceEqual(other.Targets);
-            }
-
-            public override int GetHashCode()
-                => Targets.Aggregate(0, (acc, curr) => acc ^ curr?.GetHashCode() ?? 0);
-
-            public VarArr<T> Limit(int length)
-                => new VarArr<T>(Targets.Take(length));
-
-            public override string ToString()
-                => string.Join(" ", Targets.Select(ItemToString));
-
-            protected virtual string ItemToString(T item)
-                => item?.ToString() ?? string.Empty;
+            public IEnumerable<T> Parse(TextReader reader)
+            {{
+                var tokens = lexer.Lex(reader).ToList();
+                return parser.Parse(tokens);
+            }}
+        }}");
         }
     }
 }

@@ -7,10 +7,10 @@ namespace DarkLink.ParserGen
 {
     partial class Generator
     {
-        private void GenerateTokenType(TextWriter writer, Config config)
+        private void GenerateTerminals(TextWriter writer, Config config)
         {
             writer.WriteLine($@"
-        public enum TokenType
+        public enum Terminals
         {{");
 
             foreach (var tokenInfo in config.Lexer.Tokens)
@@ -18,9 +18,6 @@ namespace DarkLink.ParserGen
             {tokenInfo.Name},");
 
             writer.WriteLine($@"
-            END,
-            EMPTY,
-            UNDEFINED,
         }}
 ");
         }
