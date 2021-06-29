@@ -5,18 +5,18 @@ using System.Text;
 
 namespace DarkLink.ParserGen.Parsing
 {
-    partial class Parser<T>
+    partial class Parser<T, TNT, TT>
     {
         private class EarleyParser
         {
-            private readonly Grammar grammar;
+            private readonly Grammar<TNT, TT> grammar;
 
-            public EarleyParser(Grammar grammar)
+            public EarleyParser(Grammar<TNT, TT> grammar)
             {
                 this.grammar = grammar;
             }
 
-            public IReadOnlyList<Node> Parse(IReadOnlyList<TerminalSymbol> tokens)
+            public IReadOnlyList<Node> Parse(IReadOnlyList<TerminalSymbol<TT>> tokens)
             {
                 var n = tokens.Count;
                 var E = Enumerable.Repeat(0, tokens.Count + 1)
@@ -160,7 +160,7 @@ namespace DarkLink.ParserGen.Parsing
                 return completedNodes;
             }
 
-            private bool IsInSigmaIndexN(Word word) => word.IsEmpty || word[0] is NonTerminalSymbol;
+            private bool IsInSigmaIndexN(Word word) => word.IsEmpty || word[0] is NonTerminalSymbol<TNT>;
 
             private SymbolNode MakeNode(LR0Item lr0, int j, int i, SymbolNode? w, SymbolNode v, Dictionary<NodeLabel, BranchNode> V)
             {

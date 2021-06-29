@@ -83,7 +83,7 @@ namespace DarkLink.ParserGen
             //var forestToTree = new Earley.ForestToParseTree<object>(new());
             //var result = forestToTree.Transform(earley2Results.First());
 
-            var earley = new Parser<object>(grammar1, new());
+            var earley = new Parser<object, string, string>(grammar1, new());
             var result = earley.Parse(terminals1);
         }
     }

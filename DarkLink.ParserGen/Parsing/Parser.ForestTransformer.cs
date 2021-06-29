@@ -5,7 +5,7 @@ using System.Linq;
 
 namespace DarkLink.ParserGen.Parsing
 {
-    partial class Parser<T>
+    partial class Parser<T, TNT, TT>
     {
         private abstract class ForestTransformer<S> : ForestVisitor
         {

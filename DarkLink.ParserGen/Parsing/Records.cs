@@ -5,25 +5,23 @@ using System.Text;
 
 namespace DarkLink.ParserGen.Parsing
 {
-    internal abstract record Symbol(string Name);
+    internal abstract record Symbol();
 
-    internal record TerminalSymbol(string Name) : Symbol(Name)
+    internal record TerminalSymbol<T>(T Value) : Symbol
     {
         public override string ToString()
-            => $"#{Name}";
+            => $"#{Value}";
     }
 
-    internal record NonTerminalSymbol(string Name) : Symbol(Name)
+    internal record TerminalSymbol(string Value) : TerminalSymbol<string>(Value);
+
+    internal record NonTerminalSymbol<T>(T Value) : Symbol
     {
         public override string ToString()
-            => Name;
+            => $"{Value}";
     }
 
-    internal record DerivedNonTerminalSymbol(NonTerminalSymbol Base) : NonTerminalSymbol(Base.Name)
-    {
-        public override string ToString()
-            => $"{Name}'";
-    }
+    internal record NonTerminalSymbol(string Value) : NonTerminalSymbol<string>(Value);
 
     internal class Word
     {
@@ -59,11 +57,36 @@ namespace DarkLink.ParserGen.Parsing
             => string.Join(", ", Symbols);
     }
 
-    internal record Production(NonTerminalSymbol Left, Word Right)
+    internal record Production<TNT>(NonTerminalSymbol<TNT> Left, Word Right)
     {
         public override string ToString()
             => $"{Left} -> {(Right.IsEmpty ? "ε" : string.Join(" ", Right.Symbols))}";
     }
 
-    internal record Grammar(ISet<NonTerminalSymbol> Variables, ISet<TerminalSymbol> Alphabet, ISet<Production> Productions, NonTerminalSymbol Start);
+    internal record Production : Production<string>
+    {
+        public Production(NonTerminalSymbol Left, Word Right)
+            : base(Left, Right) { }
+    }
+
+    internal record Grammar<TNT, TT>(
+        ISet<NonTerminalSymbol<TNT>> Variables,
+        ISet<TerminalSymbol<TT>> Alphabet,
+        ISet<Production<TNT>> Productions,
+        NonTerminalSymbol<TNT> Start);
+
+    internal record Grammar : Grammar<string, string>
+    {
+        public Grammar(
+            ISet<NonTerminalSymbol> Variables,
+            ISet<TerminalSymbol> Alphabet,
+            ISet<Production> Productions,
+            NonTerminalSymbol Start)
+            : base(
+                  new HashSet<NonTerminalSymbol<string>>(Variables),
+                  new HashSet<TerminalSymbol<string>>(Alphabet),
+                  new HashSet<Production<string>>(Productions),
+                  Start)
+        { }
+    }
 }

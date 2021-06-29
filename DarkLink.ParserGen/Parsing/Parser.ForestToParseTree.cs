@@ -6,13 +6,13 @@ using System.Linq;
 
 namespace DarkLink.ParserGen.Parsing
 {
-    partial class Parser<T>
+    partial class Parser<T, TNT, TT>
     {
         private class ForestToParseTree
         {
-            private readonly Dictionary<Production, Func<object[], T>> callbacks;
+            private readonly Dictionary<Production<TNT>, Func<object[], T>> callbacks;
 
-            public ForestToParseTree(Dictionary<Production, Func<object[], T>> callbacks)
+            public ForestToParseTree(Dictionary<Production<TNT>, Func<object[], T>> callbacks)
             {
                 this.callbacks = callbacks;
             }
@@ -30,7 +30,7 @@ namespace DarkLink.ParserGen.Parsing
 
             private class ForestToParseTreeIntl : ForestTransformer<ParseNode>
             {
-                private readonly Dictionary<Production, Func<object[], T>> callbacks;
+                private readonly Dictionary<Production<TNT>, Func<object[], T>> callbacks;
 
                 private Node? cycleNode = null;
 
@@ -38,7 +38,7 @@ namespace DarkLink.ParserGen.Parsing
 
                 private HashSet<Node> successfulVisits = new();
 
-                public ForestToParseTreeIntl(Dictionary<Production, Func<object[], T>> callbacks)
+                public ForestToParseTreeIntl(Dictionary<Production<TNT>, Func<object[], T>> callbacks)
                 {
                     this.callbacks = callbacks;
                 }

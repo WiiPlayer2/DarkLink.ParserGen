@@ -68,4 +68,16 @@ namespace DarkLink.ParserGen.Parsing
         public static T Remove<T>(this ICollection<T> collection)
             => collection.Remove(_ => true);
     }
+
+    internal static class G
+    {
+        public static Grammar<TNT, TT> Create<TNT, TT>(ISet<Production<TNT>> productions, TNT Start)
+            where TNT : Enum
+            where TT : Enum
+        {
+            var variables = new HashSet<NonTerminalSymbol<TNT>>(Enum.GetValues(typeof(TNT)).Cast<TNT>().Select(o => new NonTerminalSymbol<TNT>(o)));
+            var alphabet = new HashSet<TerminalSymbol<TT>>(Enum.GetValues(typeof(TT)).Cast<TT>().Select(o => new TerminalSymbol<TT>(o)));
+            return new Grammar<TNT, TT>(variables, alphabet, productions, new NonTerminalSymbol<TNT>(Start));
+        }
+    }
 }
