@@ -3,7 +3,7 @@ using System.Linq;
 
 namespace DarkLink.ParserGen.Parsing
 {
-    internal static partial class Earley
+    partial class Parser<T>
     {
         private abstract class ForestVisitor
         {

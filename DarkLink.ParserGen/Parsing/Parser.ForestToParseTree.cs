@@ -6,9 +6,9 @@ using System.Linq;
 
 namespace DarkLink.ParserGen.Parsing
 {
-    internal static partial class Earley
+    partial class Parser<T>
     {
-        public class ForestToParseTree<T>
+        private class ForestToParseTree
         {
             private readonly Dictionary<Production, Func<object[], T>> callbacks;
 

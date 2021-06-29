@@ -5,17 +5,17 @@ using System.Linq;
 
 namespace DarkLink.ParserGen.Parsing
 {
-    internal static partial class Earley
+    partial class Parser<T>
     {
-        private abstract class ForestTransformer<T> : ForestVisitor
+        private abstract class ForestTransformer<S> : ForestVisitor
         {
             private record ResultNode() : Node;
 
-            private readonly Dictionary<Node, List<T>> data = new();
+            private readonly Dictionary<Node, List<S>> data = new();
 
             private readonly Stack<Node> nodeStack = new();
 
-            public Option<T> Transform(Node root)
+            public Option<S> Transform(Node root)
             {
                 var resultNode = new ResultNode();
                 nodeStack.Push(resultNode);
@@ -27,13 +27,13 @@ namespace DarkLink.ParserGen.Parsing
                 return Option.None;
             }
 
-            protected abstract Option<T> TransformIntermediateNode(IntermediateNode node, List<T> data);
+            protected abstract Option<S> TransformIntermediateNode(IntermediateNode node, List<S> data);
 
-            protected abstract Option<T> TransformNonTerminalNode(NonTerminalNode node, List<T> data);
+            protected abstract Option<S> TransformNonTerminalNode(NonTerminalNode node, List<S> data);
 
-            protected abstract Option<T> TransformPackNode(PackNode node, List<T> data);
+            protected abstract Option<S> TransformPackNode(PackNode node, List<S> data);
 
-            protected abstract Option<T> TransformTerminalNode(TerminalNode node);
+            protected abstract Option<S> TransformTerminalNode(TerminalNode node);
 
             protected override IEnumerable<Node> VisitIntermediateNodeIn(IntermediateNode node)
             {

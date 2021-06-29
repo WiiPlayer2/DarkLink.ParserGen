@@ -77,11 +77,14 @@ namespace DarkLink.ParserGen
             //var glrParser = new GLR.Parser(grammar);
             //var glrResults = glrParser.Parse(terminals);
 
-            var earley2Parser = new Earley.Parser(grammar1);
-            var earley2Results = earley2Parser.Parse(terminals1);
+            //var earley2Parser = new Earley.Parser(grammar1);
+            //var earley2Results = earley2Parser.Parse(terminals1);
 
-            var forestToTree = new Earley.ForestToParseTree<object>(new());
-            var result = forestToTree.Transform(earley2Results.First());
+            //var forestToTree = new Earley.ForestToParseTree<object>(new());
+            //var result = forestToTree.Transform(earley2Results.First());
+
+            var earley = new Parser<object>(grammar1, new());
+            var result = earley.Parse(terminals1);
         }
     }
 }

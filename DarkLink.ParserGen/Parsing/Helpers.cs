@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -12,7 +13,7 @@ namespace DarkLink.ParserGen.Parsing
         public static Option<T> Some<T>(T value) => value;
     }
 
-    internal struct Option<T>
+    internal struct Option<T> : IEnumerable<T>
     {
         private readonly bool isSome;
 
@@ -30,8 +31,13 @@ namespace DarkLink.ParserGen.Parsing
 
         public static implicit operator Option<T>(T value) => new Option<T>(value);
 
+        public IEnumerator<T> GetEnumerator()
+            => Match(v => new[] { v }, Enumerable.Empty<T>).GetEnumerator();
+
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
         public Option<TResult> Map<TResult>(Func<T, TResult> map)
-            => Match<Option<TResult>>(v => map(v), () => Option.None);
+                            => Match<Option<TResult>>(v => map(v), () => Option.None);
 
         public TResult Match<TResult>(Func<T, TResult> onSome, Func<TResult> onNone)
                     => isSome ? onSome(value) : onNone.Invoke();

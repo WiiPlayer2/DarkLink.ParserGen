@@ -26,4 +26,22 @@
     <EmbeddedResource Include="Parsing\**" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Update="Parsing\Parser.Types.cs">
+      <DependentUpon>Parser.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Parsing\Parser.Parser.cs">
+      <DependentUpon>Parser.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Parsing\Parser.ForestVisitor.cs">
+      <DependentUpon>Parser.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Parsing\Parser.ForestTransformer.cs">
+      <DependentUpon>Parser.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Parsing\Parser.ForestToParseTree.cs">
+      <DependentUpon>Parser.cs</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
 </Project>
