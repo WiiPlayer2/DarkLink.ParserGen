@@ -152,7 +152,7 @@ namespace DarkLink.ParserGen.Parsing
                 {
                     var args = children
                         .Cast<ParseLeaf>()
-                        .Select(o => o.Value)
+                        .Select(o => o.Value is TerminalNode terminalNode ? terminalNode.Label.Token : o.Value)
                         .ToArray();
                     var value = callbacks[node.Production](args);
                     return new ParseLeaf(value);

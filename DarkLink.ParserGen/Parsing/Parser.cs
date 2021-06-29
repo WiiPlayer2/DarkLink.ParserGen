@@ -17,7 +17,7 @@ namespace DarkLink.ParserGen.Parsing
             forestToParseTree = new(callbacks);
         }
 
-        public IEnumerable<T> Parse(IReadOnlyList<TerminalSymbol<TT>> tokens)
+        public IEnumerable<T> Parse(IReadOnlyList<Token<TT>> tokens)
         {
             var solutions = parser.Parse(tokens);
             return solutions.SelectMany(node => forestToParseTree.Transform(node));

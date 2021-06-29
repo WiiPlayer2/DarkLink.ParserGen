@@ -13,15 +13,11 @@ namespace DarkLink.ParserGen.Parsing
             => $"#{Value}";
     }
 
-    internal record TerminalSymbol(string Value) : TerminalSymbol<string>(Value);
-
     internal record NonTerminalSymbol<T>(T Value) : Symbol
     {
         public override string ToString()
             => $"{Value}";
     }
-
-    internal record NonTerminalSymbol(string Value) : NonTerminalSymbol<string>(Value);
 
     internal class Word
     {
@@ -63,30 +59,11 @@ namespace DarkLink.ParserGen.Parsing
             => $"{Left} -> {(Right.IsEmpty ? "ε" : string.Join(" ", Right.Symbols))}";
     }
 
-    internal record Production : Production<string>
-    {
-        public Production(NonTerminalSymbol Left, Word Right)
-            : base(Left, Right) { }
-    }
-
     internal record Grammar<TNT, TT>(
         ISet<NonTerminalSymbol<TNT>> Variables,
         ISet<TerminalSymbol<TT>> Alphabet,
         ISet<Production<TNT>> Productions,
         NonTerminalSymbol<TNT> Start);
 
-    internal record Grammar : Grammar<string, string>
-    {
-        public Grammar(
-            ISet<NonTerminalSymbol> Variables,
-            ISet<TerminalSymbol> Alphabet,
-            ISet<Production> Productions,
-            NonTerminalSymbol Start)
-            : base(
-                  new HashSet<NonTerminalSymbol<string>>(Variables),
-                  new HashSet<TerminalSymbol<string>>(Alphabet),
-                  new HashSet<Production<string>>(Productions),
-                  Start)
-        { }
-    }
+    internal record Token<TT>(TerminalSymbol<TT> Symbol, string Value, int Index);
 }

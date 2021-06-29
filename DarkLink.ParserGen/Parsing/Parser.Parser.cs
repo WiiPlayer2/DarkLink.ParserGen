@@ -16,7 +16,7 @@ namespace DarkLink.ParserGen.Parsing
                 this.grammar = grammar;
             }
 
-            public IReadOnlyList<Node> Parse(IReadOnlyList<TerminalSymbol<TT>> tokens)
+            public IReadOnlyList<Node> Parse(IReadOnlyList<Token<TT>> tokens)
             {
                 var n = tokens.Count;
                 var E = Enumerable.Repeat(0, tokens.Count + 1)
@@ -30,7 +30,7 @@ namespace DarkLink.ParserGen.Parsing
                 {
                     if (IsInSigmaIndexN(production.Right))
                         E[0].Add(new(new(production, 0), 0, null));
-                    if (production.Right.Length > 0 && production.Right[0] == tokens[0])
+                    if (production.Right.Length > 0 && production.Right[0] == tokens[0].Symbol)
                         Q_.Add(new(new(production, 0), 0, null));
                 }
 
@@ -57,7 +57,7 @@ namespace DarkLink.ParserGen.Parsing
                                     E[i].Add(item);
                                     R.Add(item);
                                 }
-                                if (production.Right.Length > 0 && tokens.Count > i && production.Right[0] == tokens[i])
+                                if (production.Right.Length > 0 && tokens.Count > i && production.Right[0] == tokens[i].Symbol)
                                 {
                                     Q.Add(item);
                                 }
@@ -74,7 +74,7 @@ namespace DarkLink.ParserGen.Parsing
                                     E[i].Add(item);
                                     R.Add(item);
                                 }
-                                if (beta.Length > 0 && beta[0] == tokens[i])
+                                if (beta.Length > 0 && beta[0] == tokens[i].Symbol)
                                 {
                                     Q.Add(item);
                                 }
@@ -117,7 +117,7 @@ namespace DarkLink.ParserGen.Parsing
                                     E[i].Add(newItem);
                                     R.Add(newItem);
                                 }
-                                if (delta.Length > 0 && tokens.Count > i && delta[0] == tokens[i])
+                                if (delta.Length > 0 && tokens.Count > i && delta[0] == tokens[i].Symbol)
                                 {
                                     Q.Add(newItem);
                                 }
@@ -132,7 +132,7 @@ namespace DarkLink.ParserGen.Parsing
 
                     while (!Q.IsEmpty())
                     {
-                        var A = Q.Remove(item => item.LR0.Current == tokens[i]);
+                        var A = Q.Remove(item => item.LR0.Current == tokens[i].Symbol);
                         var h = A.Start;
                         var w = A.Node;
 
@@ -145,7 +145,7 @@ namespace DarkLink.ParserGen.Parsing
                             E[i + 1].Add(new(A.LR0.Step(), h, y));
                         }
 
-                        if (beta.Length > 0 && tokens.Count > i + 1 && beta[0] == tokens[i + 1])
+                        if (beta.Length > 0 && tokens.Count > i + 1 && beta[0] == tokens[i + 1].Symbol)
                         {
                             Q_.Add(new(A.LR0.Step(), h, y));
                         }

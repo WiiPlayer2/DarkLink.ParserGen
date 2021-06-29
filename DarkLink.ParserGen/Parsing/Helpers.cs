@@ -79,5 +79,9 @@ namespace DarkLink.ParserGen.Parsing
             var alphabet = new HashSet<TerminalSymbol<TT>>(Enum.GetValues(typeof(TT)).Cast<TT>().Select(o => new TerminalSymbol<TT>(o)));
             return new Grammar<TNT, TT>(variables, alphabet, productions, new NonTerminalSymbol<TNT>(Start));
         }
+
+        public static NonTerminalSymbol<T> NT<T>(T value) => new NonTerminalSymbol<T>(value);
+
+        public static TerminalSymbol<T> T<T>(T value) => new TerminalSymbol<T>(value);
     }
 }

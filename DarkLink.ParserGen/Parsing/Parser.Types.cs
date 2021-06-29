@@ -9,7 +9,7 @@ namespace DarkLink.ParserGen.Parsing
     {
         private abstract record NodeLabel(object? S, int Start, int End);
 
-        private record TerminalNodeLabel(TerminalSymbol<TT>? Symbol, int Start, int End) : NodeLabel(Symbol, Start, End);
+        private record TerminalNodeLabel(Token<TT>? Token, int Start, int End) : NodeLabel(Token?.Symbol, Start, End);
 
         private record NonTerminalNodeLabel(NonTerminalSymbol<TNT> LR0Item, int Start, int End) : NodeLabel(LR0Item, Start, End);
 
