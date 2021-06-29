@@ -57,7 +57,7 @@ namespace DarkLink.ParserGen.Parsing
                 var transitions = new HashSet<PDATransition>();
                 foreach (var production in gnfGrammar.Productions)
                 {
-                    transitions.Add(new(default, production.Left, production.Right));
+                    transitions.Add(new(default, production.Left, production.Right.Symbols.ToArray()));
                 }
                 foreach (var terminalSymbol in gnfGrammar.Alphabet)
                 {
@@ -169,7 +169,7 @@ namespace DarkLink.ParserGen.Parsing
 
                 Grammar ReplaceStartOnRightSide(Grammar g)
                 {
-                    if (!g.Productions.Any(o => o.Right.Contains(g.Start)))
+                    if (!g.Productions.Any(o => o.Right.Symbols.Contains(g.Start)))
                         return g;
 
                     var newStart = new DerivedNonTerminalSymbol(g.Start);

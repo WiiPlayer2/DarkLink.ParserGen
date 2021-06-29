@@ -25,10 +25,44 @@ namespace DarkLink.ParserGen.Parsing
             => $"{Name}'";
     }
 
-    internal record Production(NonTerminalSymbol Left, Symbol[] Right)
+    internal class Word
+    {
+        public Word(params Symbol[] symbols)
+        {
+            Symbols = symbols;
+        }
+
+        public static Word Empty { get; } = new Word();
+
+        public bool IsEmpty => Length == 0;
+
+        public int Length => Symbols.Count;
+
+        public IReadOnlyList<Symbol> Symbols { get; }
+
+        public Symbol this[int index] => Symbols[index];
+
+        public static implicit operator Word(Symbol[] symbols)
+            => new Word(symbols.ToArray());
+
+        public override bool Equals(object obj)
+        {
+            if (obj is Word other)
+                return Symbols.SequenceEqual(other.Symbols);
+            return false;
+        }
+
+        public override int GetHashCode()
+            => Symbols.Aggregate(0, (acc, cur) => acc ^ cur.GetHashCode());
+
+        public override string ToString()
+            => string.Join(", ", Symbols);
+    }
+
+    internal record Production(NonTerminalSymbol Left, Word Right)
     {
         public override string ToString()
-            => $"{Left} -> {(Right.Length == 0 ? "ε" : string.Join(" ", Right.AsEnumerable()))}";
+            => $"{Left} -> {(Right.IsEmpty ? "ε" : string.Join(" ", Right.Symbols))}";
     }
 
     internal record Grammar(ISet<NonTerminalSymbol> Variables, ISet<TerminalSymbol> Alphabet, ISet<Production> Productions, NonTerminalSymbol Start);
