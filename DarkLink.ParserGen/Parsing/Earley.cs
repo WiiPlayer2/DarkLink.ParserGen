@@ -1,13 +1,10 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Diagnostics;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
 namespace DarkLink.ParserGen.Parsing
 {
-    internal static class Earley
+    internal static partial class Earley
     {
         private abstract record NodeLabel(object? S, int Start, int End);
 
@@ -32,7 +29,13 @@ namespace DarkLink.ParserGen.Parsing
 
         private record IntermediateNode(IntermediateNodeLabel Label) : BranchNode;
 
-        private record PackNode(BranchNode Parent, Production Production, SymbolNode? Left, SymbolNode? Right) : Node;
+        private record PackNode(BranchNode Parent, Production Production, SymbolNode? Left, SymbolNode? Right) : Node
+        {
+            public IEnumerable<SymbolNode> Children
+                => new[] { Left, Right }
+                    .Where(o => o is not null)
+                    .Cast<SymbolNode>();
+        }
 
         private record LR0Item(Production Production, int Position)
         {
@@ -199,7 +202,7 @@ namespace DarkLink.ParserGen.Parsing
                     .Select(i => i.Node)
                     .ToList();
 
-                var visitor = new ForestToParseTree(new()
+                var visitor = new ForestToParseTree<object>(new()
                 {
                     { new Production(new("S"), new(new TerminalSymbol("a"), new NonTerminalSymbol("S"), new TerminalSymbol("a"))), list => list },
                     { new Production(new("S"), new(new TerminalSymbol("b"), new NonTerminalSymbol("S"), new TerminalSymbol("b"))), list => list },
@@ -245,338 +248,6 @@ namespace DarkLink.ParserGen.Parsing
 
                     return y;
                 }
-            }
-        }
-
-        private class ForestToParseTree : ForestTransformer
-        {
-            private readonly Dictionary<Production, Func<List<object>, object>> callbacks;
-
-            private Node? cycleNode = null;
-
-            private bool onCycleRetreat = false;
-
-            private HashSet<Node> successfulVisits = new();
-
-            public ForestToParseTree(Dictionary<Production, Func<List<object>, object>> callbacks)
-            {
-                this.callbacks = callbacks;
-            }
-
-            protected override void OnCycle(Node node, IReadOnlyList<Node> path)
-            {
-                cycleNode = node;
-                onCycleRetreat = true;
-            }
-
-            protected override (bool, object?) TransformNonTerminalNode(SymbolNode node, List<object> data)
-            {
-                if (!successfulVisits.Contains(node))
-                    return (false, default);
-
-                CheckCycle(node);
-                successfulVisits.Remove(node);
-
-                if (node is not IntermediateNode)
-                {
-                    data = CollapseAmbiguity(data);
-                    return CallAmbiguityFunc(node, data);
-                }
-                else
-                {
-                    if (data.Count > 1)
-                    {
-                        throw new NotImplementedException();
-                    }
-                    return (true, data[0]);
-                }
-            }
-
-            protected override (bool, object?) TransformPackNode(PackNode node, List<object> data)
-            {
-                CheckCycle(node);
-                if (successfulVisits.Contains(node.Parent))
-                    return (false, default);
-
-                var children = new List<object>();
-                Debug.Assert(data.Count <= 2);
-                var packData = new PackData(node, data);
-                if (packData.Left != PackData.NoData)
-                {
-                    if (node.Left is IntermediateNode && packData.Left is IEnumerable list)
-                    {
-                        children.AddRange(list.Cast<object>());
-                    }
-                    else
-                    {
-                        children.Add(packData.Left);
-                    }
-                }
-                if (packData.Right != PackData.NoData)
-                {
-                    children.Add(packData.Right);
-                }
-                if (node.Parent is IntermediateNode)
-                    return (true, children);
-                return CallRuleFunc(node, children);
-            }
-
-            protected override IEnumerable<Node> VisitNonTerminalNodeIn(NonTerminalNode node)
-            {
-                var children = base.VisitNonTerminalNodeIn(node);
-                if (onCycleRetreat)
-                    return Enumerable.Empty<Node>();
-                return children;
-            }
-
-            protected override IEnumerable<Node> VisitPackNodeIn(PackNode node)
-            {
-                onCycleRetreat = false;
-                var children = base.VisitPackNodeIn(node);
-                if (!successfulVisits.Contains(node.Parent))
-                    return children;
-                return Enumerable.Empty<Node>();
-            }
-
-            protected override void VisitPackNodeOut(PackNode node)
-            {
-                base.VisitPackNodeOut(node);
-                if (!onCycleRetreat)
-                    successfulVisits.Add(node.Parent);
-            }
-
-            private (bool, object?) CallAmbiguityFunc(Node node, List<object> data)
-            {
-                if (data.Count > 1)
-                    throw new NotImplementedException();
-                else if (data.Count == 1)
-                    return (true, data[0]);
-                else
-                    return (false, default);
-            }
-
-            private (bool, object?) CallRuleFunc(PackNode node, List<object> children)
-            {
-                return (true, callbacks[node.Production](children));
-            }
-
-            private bool CheckCycle(Node node)
-            {
-                if (onCycleRetreat)
-                {
-                    if (node == cycleNode || successfulVisits.Contains(node))
-                    {
-                        cycleNode = node;
-                        onCycleRetreat = false;
-                        return true;
-                    }
-                    return false;
-                }
-                return true;
-            }
-
-            private List<object> CollapseAmbiguity(List<object> children)
-            {
-                var newChildren = new List<object>();
-                foreach (var child in children)
-                {
-                    // Check if _ambig
-                    newChildren.Add(child);
-                }
-                return newChildren;
-            }
-
-            private class PackData
-            {
-                public PackData(PackNode node, List<object> data)
-                {
-                    Left = NoData;
-                    Right = NoData;
-
-                    if (data.Count > 0)
-                    {
-                        if (node.Left is not null)
-                        {
-                            Left = data[0];
-                            if (data.Count > 1)
-                                Right = data[1];
-                        }
-                        else
-                        {
-                            Right = data[0];
-                        }
-                    }
-                }
-
-                public static object NoData { get; } = new _NoData();
-
-                public object? Left { get; }
-
-                public object? Right { get; }
-
-                private class _NoData { }
-            }
-        }
-
-        private class ForestTransformer : ForestVisitor
-        {
-            private record ResultNode() : Node;
-
-            private readonly Dictionary<object, List<object>> data = new();
-
-            private readonly Stack<Node> nodeStack = new();
-
-            public object? Transform(Node root)
-            {
-                var resultNode = new ResultNode();
-                nodeStack.Push(resultNode);
-                data[resultNode] = new List<object>();
-                Visit(root);
-                Debug.Assert(data[resultNode].Count <= 1);
-                if (data[resultNode].Count > 0)
-                    return data[resultNode][0];
-                return null;
-            }
-
-            protected virtual (bool, object?) TransformIntermediateNode(IntermediateNode node, List<object> data)
-                => (true, node);
-
-            protected virtual (bool, object?) TransformNonTerminalNode(NonTerminalNode node, List<object> data)
-                => (true, node);
-
-            protected virtual (bool, object?) TransformPackNode(PackNode node, List<object> data)
-                => (true, node);
-
-            protected virtual (bool, object?) TransformTerminalNode(TerminalNode node, List<object> data)
-                => (true, node);
-
-            protected override IEnumerable<Node> VisitIntermediateNodeIn(IntermediateNode node)
-            {
-                throw new NotImplementedException();
-            }
-
-            protected override IEnumerable<Node> VisitNonTerminalNodeIn(NonTerminalNode node)
-            {
-                nodeStack.Push(node);
-                data[node] = new();
-                return node.Children;
-            }
-
-            protected override void VisitNonTerminalNodeOut(NonTerminalNode node)
-            {
-                nodeStack.Pop();
-                var (keep, transformed) = TransformNonTerminalNode(node, data[node]);
-                if (keep)
-                    data[nodeStack.Peek()].Add(transformed);
-                data.Remove(node);
-            }
-
-            protected override IEnumerable<Node> VisitPackNodeIn(PackNode node)
-            {
-                nodeStack.Push(node);
-                data[node] = new();
-                return new[] { node.Left, node.Right }.Where(o => o is not null).Cast<Node>();
-            }
-
-            protected override void VisitPackNodeOut(PackNode node)
-            {
-                nodeStack.Pop();
-                var (keep, transformed) = TransformPackNode(node, data[node]);
-                if (keep)
-                    data[nodeStack.Peek()].Add(transformed);
-                data.Remove(node);
-            }
-        }
-
-        private abstract class ForestVisitor
-        {
-            private readonly bool onlyVisitOnce;
-
-            public ForestVisitor(bool onlyVisitOnce = false)
-            {
-                this.onlyVisitOnce = onlyVisitOnce;
-            }
-
-            public void Visit(Node node)
-            {
-                Visit(node, new(), new(), new());
-            }
-
-            protected virtual void OnCycle(Node node, IReadOnlyList<Node> path)
-            {
-            }
-
-            protected abstract IEnumerable<Node> VisitIntermediateNodeIn(IntermediateNode node);
-
-            protected virtual void VisitIntermediateNodeOut(IntermediateNode node)
-            {
-            }
-
-            protected abstract IEnumerable<Node> VisitNonTerminalNodeIn(NonTerminalNode node);
-
-            protected virtual void VisitNonTerminalNodeOut(NonTerminalNode node)
-            {
-            }
-
-            protected abstract IEnumerable<Node> VisitPackNodeIn(PackNode node);
-
-            protected virtual void VisitPackNodeOut(PackNode node)
-            {
-            }
-
-            protected virtual void VisitTerminalNode(TerminalNode node)
-            {
-            }
-
-            private void Visit(Node node, HashSet<Node> visited, HashSet<Node> visiting, Stack<Node> path)
-            {
-                if (node is TerminalNode terminalNode)
-                {
-                    VisitTerminalNode(terminalNode);
-                    return;
-                }
-
-                if (onlyVisitOnce && visited.Contains(node))
-                    return;
-
-                if (visiting.Contains(node))
-                {
-                    OnCycle(node, path.ToList());
-                    return;
-                }
-
-                visiting.Add(node);
-                path.Push(node);
-
-                var nextNodes = node switch
-                {
-                    IntermediateNode intermediateNode => VisitIntermediateNodeIn(intermediateNode),
-                    NonTerminalNode nonTerminalNode => VisitNonTerminalNodeIn(nonTerminalNode),
-                    PackNode packNode => VisitPackNodeIn(packNode),
-                    _ => Enumerable.Empty<Node>(),
-                };
-
-                foreach (var nextNode in nextNodes)
-                    Visit(nextNode, visited, visiting, path);
-
-                switch (node)
-                {
-                    case IntermediateNode intermediateNode:
-                        VisitIntermediateNodeOut(intermediateNode);
-                        break;
-
-                    case NonTerminalNode nonTerminalNode:
-                        VisitNonTerminalNodeOut(nonTerminalNode);
-                        break;
-
-                    case PackNode packNode:
-                        VisitPackNodeOut(packNode);
-                        break;
-                }
-
-                path.Pop();
-                visiting.Remove(node);
-                visited.Add(node);
             }
         }
     }
