@@ -11,7 +11,7 @@ namespace DarkLink.ParserGen.Parsing
 
         private readonly Parser<T, TNT, TT>.EarleyParser parser;
 
-        public Parser(Grammar<TNT, TT> grammar, Dictionary<Production<TNT>, Func<object[], T>> callbacks)
+        public Parser(Grammar<TNT, TT> grammar, IReadOnlyDictionary<Production<TNT>, Func<object[], T>> callbacks)
         {
             parser = new(grammar);
             forestToParseTree = new(callbacks);

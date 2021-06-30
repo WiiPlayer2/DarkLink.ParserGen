@@ -10,9 +10,9 @@ namespace DarkLink.ParserGen.Parsing
     {
         private class ForestToParseTree
         {
-            private readonly Dictionary<Production<TNT>, Func<object[], T>> callbacks;
+            private readonly IReadOnlyDictionary<Production<TNT>, Func<object[], T>> callbacks;
 
-            public ForestToParseTree(Dictionary<Production<TNT>, Func<object[], T>> callbacks)
+            public ForestToParseTree(IReadOnlyDictionary<Production<TNT>, Func<object[], T>> callbacks)
             {
                 this.callbacks = callbacks;
             }
@@ -22,7 +22,7 @@ namespace DarkLink.ParserGen.Parsing
 
             public abstract record ParseNode();
 
-            public record ParseLeaf(object Value) : ParseNode;
+            public record ParseLeaf(object? Value) : ParseNode;
 
             public record ParseAmbig(IReadOnlyList<ParseNode> Value) : ParseNode;
 
@@ -30,7 +30,7 @@ namespace DarkLink.ParserGen.Parsing
 
             private class ForestToParseTreeIntl : ForestTransformer<ParseNode>
             {
-                private readonly Dictionary<Production<TNT>, Func<object[], T>> callbacks;
+                private readonly IReadOnlyDictionary<Production<TNT>, Func<object[], T>> callbacks;
 
                 private Node? cycleNode = null;
 
@@ -38,13 +38,18 @@ namespace DarkLink.ParserGen.Parsing
 
                 private HashSet<Node> successfulVisits = new();
 
-                public ForestToParseTreeIntl(Dictionary<Production<TNT>, Func<object[], T>> callbacks)
+                public ForestToParseTreeIntl(IReadOnlyDictionary<Production<TNT>, Func<object[], T>> callbacks)
                 {
                     this.callbacks = callbacks;
                 }
 
                 public new Option<T> Transform(Node root)
-                    => base.Transform(root).Map(node => (T)((ParseLeaf)node).Value);
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
+#pragma warning disable CS8603 // Possible null reference return.
+                    => base.Transform(root).Map<T>(node => (T)((ParseLeaf)node).Value);
+
+#pragma warning restore CS8603 // Possible null reference return.
+#pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
 
                 protected override void OnCycle(Node node, IReadOnlyList<Node> path)
                 {
@@ -150,7 +155,7 @@ namespace DarkLink.ParserGen.Parsing
 
                 private Option<ParseNode> CallRuleFunc(PackNode node, List<ParseNode> children)
                 {
-                    var args = children
+                    var args = (object[])children
                         .Cast<ParseLeaf>()
                         .Select(o => o.Value is TerminalNode terminalNode ? terminalNode.Label.Token : o.Value)
                         .ToArray();

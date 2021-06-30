@@ -160,6 +160,7 @@ namespace DarkLink.ParserGen.Parsing
                 var completedNodes = lastSet
                     .Where(i => i.LR0.IsFinished && i.LR0.Production.Left == grammar.Start && i.Start == 0)
                     .Select(i => i.Node)
+                    .WhereNotNull()
                     .ToList();
                 return completedNodes;
             }

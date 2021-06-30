@@ -103,22 +103,38 @@ namespace DarkLink.ParserGen.Parsing
 
     internal class AstBuilder<T, TNT>
     {
-        private readonly Dictionary<Production<TNT>, Func<object[], T>> registeredMethods = new();
+        private readonly Dictionary<Production<TNT>, Func<object[], T>> callbacks = new();
 
-        public Dictionary<Production<TNT>, Func<object[], T>> Callbacks => registeredMethods;
+        public IReadOnlyDictionary<Production<TNT>, Func<object[], T>> Callbacks => callbacks;
 
-        protected T DUMP(object[] args) => default;
+#pragma warning disable CS8603 // Possible null reference return.
+
+        protected T IGNORE(object[] args) => default;
+
+#pragma warning restore CS8603 // Possible null reference return.
+
+        protected Func<object[], T> MAP(string methodName, params int[] indices)
+        {
+            var methodInfo = GetType().GetMethod(methodName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.NonPublic);
+            return args =>
+            {
+                var newArgs = new object[indices.Length];
+                for (var i = 0; i < newArgs.Length; i++)
+                    newArgs[i] = args[indices[i]];
+                return (T)methodInfo.Invoke(this, args);
+            };
+        }
 
         protected T PASS(object[] args) => (T)args[0];
 
         protected void R(Production<TNT> production, string methodName)
         {
             var methodInfo = GetType().GetMethod(methodName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.NonPublic);
-            registeredMethods.Add(production, args => (T)methodInfo.Invoke(this, args));
+            callbacks.Add(production, args => (T)methodInfo.Invoke(this, args));
         }
 
         protected void R(Production<TNT> production, Func<object[], T> func)
-            => registeredMethods.Add(production, func);
+            => callbacks.Add(production, func);
 
         protected Func<object[], T> SELECT(int index) => args => (T)args[index];
     }
@@ -166,7 +182,11 @@ namespace DarkLink.ParserGen.Parsing
 
             public T Current => set.list[currentIndex];
 
+#pragma warning disable CS8603 // Possible null reference return.
+
             object IEnumerator.Current => Current;
+
+#pragma warning restore CS8603 // Possible null reference return.
 
             public void Dispose()
             {
