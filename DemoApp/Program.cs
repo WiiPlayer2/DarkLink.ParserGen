@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using DarkLink.ParserGen.Parsing;
+using TestingNS;
 
 namespace DemoApp
 {
@@ -18,17 +19,26 @@ namespace DemoApp
         private static void Main(string[] args)
         {
             var content = @"aabbaa";
-            var parser = new Testing.Parser<S>(new()
+            var parser = new TestingC.Parser<S>(new()
             {
-                { Testing.Productions.S___TO___A__S__A, xSx },
-                { Testing.Productions.S___TO___B__S__B, xSx },
-                { Testing.Productions.S___TO___, empty },
+                { TestingC.Productions.START___TO___S, args => (S)args[0] },
+                { TestingC.Productions.S___TO____a__S___a, },
+                { TestingC.Productions.S___TO___S_62__S__S_62, },
+                { TestingC.Productions.S___TO___, empty },
             });
             var rootNode = parser.Parse(content).ToList();
 
             Console.WriteLine($"{rootNode}");
         }
 
-        private static S xSx(object[] args) => new Pair(((Token<Testing.Terminals>)args[0]).Value, (S)args[1], ((Token<Testing.Terminals>)args[2]).Value);
+        private class AST : AstBuilder<S, TestingC.NonTerminals>
+        {
+            public AST()
+            {
+                R(TestingC.Productions.START___TO___S, PASS);
+                R(TestingC.Productions.S___TO___, DUMP);
+                R(TestingC.Productions.S___TO____a__S___a, args => new Pair(args[0]))
+            }
+        }
     }
 }

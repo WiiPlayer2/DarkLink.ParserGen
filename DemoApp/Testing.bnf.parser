@@ -1,10 +1,2 @@
-﻿#namespace DemoApp
-#modifier internal
-#start S
-
-A = "a"
-B = "b"
-
-S -> #A S #A;
-S -> #B S #B;
-S -> #EMPTY;
+﻿<START> ::= <S>
+<S> ::= "a" <S> "a" | "b" <S> "b" | ""

@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 
 namespace DarkLink.ParserGen.Parsing
@@ -70,6 +71,9 @@ namespace DarkLink.ParserGen.Parsing
 
         public static T Remove<T>(this ICollection<T> collection)
             => collection.Remove(_ => true);
+
+        public static IEnumerable<T> WhereNotNull<T>(this IEnumerable<T?> sequence)
+            => sequence.Where(o => o is not null).Cast<T>();
     }
 
     internal static class G
@@ -89,5 +93,95 @@ namespace DarkLink.ParserGen.Parsing
             => new Production<TNT>(NT(left), new Word(right));
 
         public static TerminalSymbol<T> T<T>(T value) => new TerminalSymbol<T>(value);
+    }
+
+    internal static class P
+    {
+        public static Func<object[], TResult> Delegate<TResult>(Delegate @delegate)
+            => args => (TResult)@delegate.DynamicInvoke(args);
+    }
+
+    internal class AstBuilder<T, TNT>
+    {
+        private readonly Dictionary<Production<TNT>, Func<object[], T>> registeredMethods = new();
+
+        public Dictionary<Production<TNT>, Func<object[], T>> Callbacks => registeredMethods;
+
+        protected T DUMP(object[] args) => default;
+
+        protected T PASS(object[] args) => (T)args[0];
+
+        protected void R(Production<TNT> production, string methodName)
+        {
+            var methodInfo = GetType().GetMethod(methodName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.NonPublic);
+            registeredMethods.Add(production, args => (T)methodInfo.Invoke(this, args));
+        }
+
+        protected void R(Production<TNT> production, Func<object[], T> func)
+            => registeredMethods.Add(production, func);
+
+        protected Func<object[], T> SELECT(int index) => args => (T)args[index];
+    }
+
+    internal class OrderedSet<T> : ICollection<T>
+    {
+        private readonly List<T> list = new();
+
+        public int Count => list.Count;
+
+        public bool IsReadOnly { get; } = false;
+
+        public bool Add(T item)
+        {
+            if (list.Contains(item))
+                return false;
+            list.Add(item);
+            return true;
+        }
+
+        void ICollection<T>.Add(T item) => Add(item);
+
+        public void Clear() => list.Clear();
+
+        public bool Contains(T item) => list.Contains(item);
+
+        public void CopyTo(T[] array, int arrayIndex) => list.CopyTo(array, arrayIndex);
+
+        public IEnumerator<T> GetEnumerator() => new Enumerator(this);
+
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+        public bool Remove(T item) => list.Remove(item);
+
+        private class Enumerator : IEnumerator<T>
+        {
+            private readonly OrderedSet<T> set;
+
+            private int currentIndex = -1;
+
+            public Enumerator(OrderedSet<T> set)
+            {
+                this.set = set;
+            }
+
+            public T Current => set.list[currentIndex];
+
+            object IEnumerator.Current => Current;
+
+            public void Dispose()
+            {
+            }
+
+            public bool MoveNext()
+            {
+                currentIndex++;
+                return currentIndex < set.list.Count;
+            }
+
+            public void Reset()
+            {
+                currentIndex = -1;
+            }
+        }
     }
 }

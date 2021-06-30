@@ -20,7 +20,7 @@ namespace DarkLink.ParserGen.Parsing
             {
                 var n = tokens.Count;
                 var E = Enumerable.Repeat(0, tokens.Count + 1)
-                    .Select(_ => new HashSet<EarleyItem>())
+                    .Select(_ => new OrderedSet<EarleyItem>())
                     .ToArray();
                 var Q_ = new HashSet<EarleyItem>();
                 var V = new Dictionary<NodeLabel, BranchNode>();
@@ -74,7 +74,7 @@ namespace DarkLink.ParserGen.Parsing
                                     E[i].Add(item);
                                     R.Add(item);
                                 }
-                                if (beta.Length > 0 && beta[0] == tokens[i].Symbol)
+                                if (beta.Length > 0 && tokens.Count > i && beta[0] == tokens[i].Symbol)
                                 {
                                     Q.Add(item);
                                 }
@@ -107,8 +107,12 @@ namespace DarkLink.ParserGen.Parsing
                                 H.Add(A.LR0.Production.Left, (BranchNode)w);
                             }
 
-                            foreach (var item in E[h].Where(i => !i.LR0.IsFinished && i.LR0.Current == A.LR0.Production.Left))
+                            // This might not be entirely correct. An item matching this predicate may be added during an iteration.
+                            foreach (var item in E[h])
                             {
+                                if (!(!item.LR0.IsFinished && item.LR0.Current == A.LR0.Production.Left))
+                                    continue;
+
                                 var y = (BranchNode)MakeNode(item.LR0.Step(), item.Start, i, item.Node, w, V);
                                 var delta = item.LR0.Production.Right.Symbols.Skip(item.LR0.Position + 1).ToArray();
                                 var newItem = new EarleyItem(item.LR0.Step(), item.Start, y);
