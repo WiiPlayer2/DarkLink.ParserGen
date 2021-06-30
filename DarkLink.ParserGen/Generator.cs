@@ -94,7 +94,7 @@ using DarkLink.ParserGen.Parsing;
 
 namespace {config.Type.Namespace}
 {{
-    internal static class {config.Type.Name}
+    internal static partial class {config.Type.Name}
     {{");
 
                 GenerateTerminals(writer, config);
