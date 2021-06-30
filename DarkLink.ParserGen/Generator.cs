@@ -26,8 +26,6 @@ namespace DarkLink.ParserGen
             if (parserFiles.Count == 0)
                 return;
 
-            AddParsingCode(context);
-
             foreach (var additionalText in parserFiles)
             {
                 context.CancellationToken.ThrowIfCancellationRequested();
@@ -52,22 +50,6 @@ namespace DarkLink.ParserGen
 
         public void Initialize(GeneratorInitializationContext context)
         {
-        }
-
-        private void AddParsingCode(GeneratorExecutionContext context)
-        {
-            var assembly = typeof(Generator).Assembly;
-            var files = assembly.GetManifestResourceNames()
-                .Where(o => Regex.IsMatch(o, @"DarkLink\.ParserGen\.Parsing\..*\.cs"));
-            foreach (var file in files)
-            {
-                using var stream = assembly.GetManifestResourceStream(file);
-                using var reader = new StreamReader(stream, sourceEncoding);
-                var content = "#nullable enable\n" + reader.ReadToEnd();
-                var sourceText = SourceText.From(content, sourceEncoding);
-                var newFilename = Path.GetFileNameWithoutExtension(file) + ".g" + Path.GetExtension(file);
-                context.AddSource(newFilename, sourceText);
-            }
         }
 
         private void AddSource(GeneratorExecutionContext context, string hintName, Action<StringWriter> write)
