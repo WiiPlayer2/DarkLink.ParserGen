@@ -101,6 +101,7 @@ namespace {config.Type.Namespace}
                 GenerateNonTerminals(writer, config);
                 GenerateProductions(writer, config);
                 GenerateParser(writer, config);
+                GenerateCst(writer, config);
 
                 writer.WriteLine($@"
     }}
