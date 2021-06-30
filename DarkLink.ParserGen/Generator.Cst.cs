@@ -31,11 +31,12 @@ namespace DarkLink.ParserGen
         private void GenerateCst(TextWriter writer, Config config)
         {
             writer.WriteLine($@"
-        public class Cst
+        public static class Cst
         {{");
 
             GenerateCstNodes(writer, config);
             GenerateCstBuilder(writer, config);
+            GenerateCstParse(writer, config);
 
             writer.WriteLine($@"
         }}");
@@ -173,6 +174,24 @@ namespace DarkLink.ParserGen
                     writer.WriteLine($"public record {production.Left.Value}{suffix}Node({string.Join(", ", args)}) : {baseClass};");
                 }
             }
+        }
+
+        private void GenerateCstParse(TextWriter writer, Config config)
+        {
+            var startClass = $"{config.Grammar.Start.Value}Node";
+            writer.WriteLine($@"
+            private static IEnumerable<{startClass}> Parse(Func<Parser<Node>, IEnumerable<Node>> parse)
+                => parse(new Parser<Node>(new CstBuilder().Callbacks)).Cast<{startClass}>();
+
+            public static IEnumerable<{startClass}> Parse(string input)
+                => Parse(p => p.Parse(input));
+
+            public static IEnumerable<{startClass}> Parse(Stream stream)
+                => Parse(p => p.Parse(stream));
+
+            public static IEnumerable<{startClass}> Parse(TextReader reader)
+                => Parse(p => p.Parse(reader));
+");
         }
 
         private ILookup<NonTerminalSymbol<string>, (ProductionType Type, Production<string> Production)> GetProductionLookup(IEnumerable<Production<string>> productions)
