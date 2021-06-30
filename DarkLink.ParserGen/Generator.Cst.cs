@@ -155,12 +155,20 @@ namespace DarkLink.ParserGen
 
                 void WriteEmptyNode(NonTerminalSymbol<string> symbol, string suffix, string baseClass)
                 {
-                    writer.WriteLine($"public record {symbol.Value}{suffix}Node() : {baseClass};");
+                    writer.WriteLine($@"
+            public record {symbol.Value}{suffix}Node() : {baseClass}
+            {{
+                public override string ToString() => string.Empty;
+            }}");
                 }
 
                 void WriteOnlyTerminalsNode(NonTerminalSymbol<string> symbol, string suffix, string baseClass)
                 {
-                    writer.WriteLine($"public record {symbol.Value}{suffix}Node(IReadOnlyList<Token<Terminals>> Tokens) : {baseClass};");
+                    writer.WriteLine($@"
+            public record {symbol.Value}{suffix}Node(IReadOnlyList<Token<Terminals>> Tokens) : {baseClass}
+            {{
+                public override string ToString() => string.Concat(Tokens.Select(o => o.Value));
+            }}");
                 }
 
                 void WriteMixedNode(Production<string> production, string suffix, string baseClass)
@@ -171,7 +179,17 @@ namespace DarkLink.ParserGen
                         NonTerminalSymbol<string> nts => $"{nts.Value}Node {nts.Value}{i}",
                         _ => throw new NotImplementedException(),
                     });
-                    writer.WriteLine($"public record {production.Left.Value}{suffix}Node({string.Join(", ", args)}) : {baseClass};");
+                    var props = production.Right.Symbols.Select((s, i) => s switch
+                    {
+                        TerminalSymbol<string> ts => $"Token{i}.Value",
+                        NonTerminalSymbol<string> nts => $"{nts.Value}{i}",
+                        _ => throw new NotImplementedException(),
+                    });
+                    writer.WriteLine($@"
+            public record {production.Left.Value}{suffix}Node({string.Join(", ", args)}) : {baseClass}
+            {{
+                public override string ToString() => $""{string.Concat(props.Select(o => $"{{{o}}}"))}"";
+            }}");
                 }
             }
         }
