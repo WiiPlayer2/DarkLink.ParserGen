@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.CodeAnalysis.CSharp;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -25,8 +26,8 @@ namespace DarkLink.ParserGen
             {
                 var ruleCode = token.Rule switch
                 {
-                    RegexRule regexRule => $"new Lexer<Terminals>.RegexRule(new Regex({Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(regexRule.Regex, true)}))",
-                    LiteralRule literalRule => $"new Lexer<Terminals>.LiteralRule(\"{literalRule.Literal}\")",
+                    RegexRule regexRule => $"new Lexer<Terminals>.RegexRule(new Regex({SymbolDisplay.FormatLiteral(regexRule.Regex, true)}))",
+                    LiteralRule literalRule => $"new Lexer<Terminals>.LiteralRule({SymbolDisplay.FormatLiteral(literalRule.Literal, true)})",
                     _ => throw new NotSupportedException(),
                 };
                 writer.WriteLine($"{{ Terminals.{token.Name}, {ruleCode} }},");
