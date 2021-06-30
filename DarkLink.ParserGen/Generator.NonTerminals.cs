@@ -14,9 +14,8 @@ namespace DarkLink.ParserGen
         public enum NonTerminals
         {{");
 
-            foreach (var symbol in config.Parser.Rules.Select(o => o.Name).Distinct())
-                writer.WriteLine($@"
-            {symbol},");
+            foreach (var symbol in config.Grammar.Variables.Select(o => o.Value))
+                writer.WriteLine($"{symbol},");
 
             writer.WriteLine($@"
         }}

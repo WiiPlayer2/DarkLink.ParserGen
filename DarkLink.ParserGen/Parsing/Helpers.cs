@@ -72,8 +72,11 @@ namespace DarkLink.ParserGen.Parsing
         public static T Remove<T>(this ICollection<T> collection)
             => collection.Remove(_ => true);
 
+        public static ISet<T> ToSet<T>(this IEnumerable<T> sequence)
+            => new HashSet<T>(sequence);
+
         public static IEnumerable<T> WhereNotNull<T>(this IEnumerable<T?> sequence)
-            => sequence.Where(o => o is not null).Cast<T>();
+                    => sequence.Where(o => o is not null).Cast<T>();
     }
 
     internal static class G

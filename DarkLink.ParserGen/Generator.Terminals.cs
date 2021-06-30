@@ -13,9 +13,8 @@ namespace DarkLink.ParserGen
         public enum Terminals
         {{");
 
-            foreach (var tokenInfo in config.Lexer.Tokens)
-                writer.WriteLine($@"
-            {tokenInfo.Name},");
+            foreach (var symbol in config.Grammar.Alphabet)
+                writer.WriteLine($"{symbol.Value},");
 
             writer.WriteLine($@"
         }}

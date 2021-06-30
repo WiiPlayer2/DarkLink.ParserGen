@@ -68,22 +68,10 @@ namespace DarkLink.ParserGen.Formats.Bnf
 
             var typeInfo = new TypeInfo(@namespace, className, "internal");
             var lexerInfo = new LexerInfo(literalRules.Select(CreateTokenInfo).ToList());
-            var parserInfo = new ParserInfo(start, null, grammar.Productions.Select(CreateRule).ToList());
-            return new Config(typeInfo, lexerInfo, parserInfo);
+            return new Config(typeInfo, lexerInfo, grammar);
 
             TokenInfo CreateTokenInfo(KeyValuePair<string, TokenRule> pair)
                 => new TokenInfo(pair.Key, pair.Value);
-
-            ParserRule CreateRule(Production<string> production)
-                => new ParserRule(production.Left.Value, production.Right.Symbols.Select(CreateTarget).ToList());
-
-            ParserRuleTarget CreateTarget(Symbol symbol)
-                => symbol switch
-                {
-                    TerminalSymbol<string> terminal => new ParserRuleTarget(terminal.Value, true),
-                    NonTerminalSymbol<string> nonTerminal => new ParserRuleTarget(nonTerminal.Value, false),
-                    _ => throw new NotSupportedException(),
-                };
         }
 
         private static (Grammar<string, string>, Dictionary<string, TokenRule>) CreateGrammar(BnfConfig config)

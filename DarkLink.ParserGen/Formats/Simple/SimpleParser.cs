@@ -1,4 +1,5 @@
-﻿using Microsoft.CodeAnalysis;
+﻿using DarkLink.ParserGen.Parsing;
+using Microsoft.CodeAnalysis;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -36,7 +37,7 @@ namespace DarkLink.ParserGen.Formats.Simple
             string? start = null;
             int? k = null;
             var tokens = new List<(string Type, TokenRule Rule)>();
-            var rules = new List<(string Name, ParserRuleTarget[] Targets)>();
+            var rules = new List<(string Name, Symbol[] Targets)>();
 
             foreach (var line in sourceText.Lines)
             {
@@ -104,11 +105,11 @@ namespace DarkLink.ParserGen.Formats.Simple
                     var rule = match.Groups["rule"].Value;
                     var targets = match.Groups["target"].Captures
                         .Cast<Capture>()
-                        .Select(o =>
+                        .Select<Capture, Symbol>(o =>
                         {
                             if (o.Value.StartsWith("#"))
-                                return new ParserRuleTarget(o.Value.Substring(1), true);
-                            return new ParserRuleTarget(o.Value, false);
+                                return G.T(o.Value.Substring(1));
+                            return G.NT(o.Value);
                         })
                         .ToArray();
                     rules.Add((rule, targets));
@@ -137,11 +138,10 @@ namespace DarkLink.ParserGen.Formats.Simple
                 new(@namespace, name, modifier ?? string.Empty),
                 new(tokens.Select(tuple => new TokenInfo(tuple.Type, tuple.Rule)).ToList()),
                 new(
-                    start,
-                    k,
-                    rules
-                        .Select(tuple => new ParserRule(tuple.Name, tuple.Targets))
-                        .ToList()));
+                    rules.Select(o => G.NT(o.Name)).ToSet(),
+                    tokens.Select(o => G.T(o.Type)).ToSet(),
+                    rules.Select(o => G.P(o.Name, o.Targets)).ToSet(),
+                    G.NT(start)));
         }
     }
 }

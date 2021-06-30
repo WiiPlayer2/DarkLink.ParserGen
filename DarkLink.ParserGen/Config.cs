@@ -1,11 +1,12 @@
-﻿using Microsoft.CodeAnalysis.Text;
+﻿using DarkLink.ParserGen.Parsing;
+using Microsoft.CodeAnalysis.Text;
 using System;
 using System.Collections.Generic;
 using System.Text;
 
 namespace DarkLink.ParserGen
 {
-    record Config(TypeInfo Type, LexerInfo Lexer, ParserInfo Parser);
+    record Config(TypeInfo Type, LexerInfo Lexer, Grammar<string, string> Grammar);
 
     record TypeInfo(string Namespace, string Name, string Modifier);
 
@@ -18,12 +19,6 @@ namespace DarkLink.ParserGen
     record RegexRule(string Regex) : TokenRule;
 
     record LiteralRule(string Literal) : TokenRule;
-
-    record ParserInfo(string Start, int? K, IReadOnlyList<ParserRule> Rules);
-
-    record ParserRuleTarget(string Name, bool IsToken);
-
-    record ParserRule(string Name, IReadOnlyList<ParserRuleTarget> Targets);
 }
 
 namespace System.Runtime.CompilerServices
