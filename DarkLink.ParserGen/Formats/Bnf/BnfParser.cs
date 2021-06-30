@@ -31,6 +31,7 @@ namespace DarkLink.ParserGen.Formats.Bnf
                 { Ts.DoubleQuote, new Lexer<Ts>.LiteralRule("\"") },
                 { Ts.SingleQuote, new Lexer<Ts>.LiteralRule("'") },
                 { Ts.Dash, new Lexer<Ts>.LiteralRule("-") },
+                { Ts.Slash, new Lexer<Ts>.LiteralRule("/") },
                 { Ts.EOL, new Lexer<Ts>.RegexRule(new Regex("\\r?\\n")) },
                 { Ts.Letter, new Lexer<Ts>.RegexRule(new Regex("[A-Za-z]")) },
                 { Ts.Digit, new Lexer<Ts>.RegexRule(new Regex("[0-9]")) },
@@ -60,16 +61,16 @@ namespace DarkLink.ParserGen.Formats.Bnf
             return CreateConfig(config.Meta, className, parsedGrammar, literals);
         }
 
-        private static Config CreateConfig(BnfMeta meta, string className, Grammar<string, string> grammar, Dictionary<string, string> literals)
+        private static Config CreateConfig(BnfMeta meta, string className, Grammar<string, string> grammar, Dictionary<string, TokenRule> literalRules)
         {
             var @namespace = meta.Entries[NAMESPACE];
             var typeInfo = new TypeInfo(@namespace, className, "internal");
-            var lexerInfo = new LexerInfo(literals.Select(CreateTokenInfo).ToList());
+            var lexerInfo = new LexerInfo(literalRules.Select(CreateTokenInfo).ToList());
             var parserInfo = new ParserInfo(START, null, grammar.Productions.Select(CreateRule).ToList());
             return new Config(typeInfo, lexerInfo, parserInfo);
 
-            TokenInfo CreateTokenInfo(KeyValuePair<string, string> pair)
-                => new TokenInfo(pair.Key, new LiteralRule(pair.Value));
+            TokenInfo CreateTokenInfo(KeyValuePair<string, TokenRule> pair)
+                => new TokenInfo(pair.Key, pair.Value);
 
             ParserRule CreateRule(Production<string> production)
                 => new ParserRule(production.Left.Value, production.Right.Symbols.Select(CreateTarget).ToList());
@@ -83,17 +84,17 @@ namespace DarkLink.ParserGen.Formats.Bnf
                 };
         }
 
-        private static (Grammar<string, string>, Dictionary<string, string>) CreateGrammar(BnfConfig config)
+        private static (Grammar<string, string>, Dictionary<string, TokenRule>) CreateGrammar(BnfConfig config)
         {
             var syntax = config.Syntax;
-            var literals = new Dictionary<string, string>();
+            var literalRules = new Dictionary<string, TokenRule>();
             var nonTerminals = new HashSet<NonTerminalSymbol<string>>(syntax.Rules.Select(o => G.NT(GetNonTerminalName(o.Name))));
             var productions = new HashSet<Production<string>>(syntax.Rules.SelectMany(CreateProductions));
             var terminals = new HashSet<TerminalSymbol<string>>(productions.SelectMany(o => o.Right.Symbols).OfType<TerminalSymbol<string>>());
 
             var grammar = new Grammar<string, string>(nonTerminals, terminals, productions, G.NT(config.Meta.Entries[START]));
 
-            return (grammar, literals);
+            return (grammar, literalRules);
 
             IEnumerable<Production<string>> CreateProductions(BnfRule rule)
                 => rule.Expression.TermLists.Select(l => CreateProduction(rule, l));
@@ -106,20 +107,29 @@ namespace DarkLink.ParserGen.Formats.Bnf
                 var symbol = term switch
                 {
                     BnfLiteralTerm { Literal: "" } => (Symbol?)null,
-                    BnfLiteralTerm literalTerm => G.T(GetTerminalName(literalTerm.Literal)),
+                    BnfLiteralTerm literalTerm => G.T(GetTerminalName(literalTerm)),
+                    BnfRegexTerm regexTerm => G.T(GetTerminalName(regexTerm)),
                     BnfRuleTerm ruleTerm => G.NT(GetNonTerminalName(ruleTerm.Rule)),
                     _ => throw new NotSupportedException(),
                 };
-                if (symbol is TerminalSymbol<string> terminalSymbol && term is BnfLiteralTerm lt)
-                    literals[terminalSymbol.Value] = lt.Literal;
+                if (symbol is TerminalSymbol<string> terminalSymbol)
+                    if (term is BnfLiteralTerm lt)
+                        literalRules[terminalSymbol.Value] = new LiteralRule(lt.Literal);
+                    else if (term is BnfRegexTerm rt)
+                        literalRules[terminalSymbol.Value] = new RegexRule(rt.Regex);
                 return symbol;
             }
 
             string GetNonTerminalName(string name)
                 => name.Replace('-', '_');
 
-            string GetTerminalName(string literal)
-                => $"_{string.Concat(literal.Select(GetTerminalChar))}";
+            string GetTerminalName(BnfTerm term)
+                => term switch
+                {
+                    BnfLiteralTerm literalTerm => $"_{string.Concat(literalTerm.Literal.Select(GetTerminalChar))}",
+                    BnfRegexTerm regexTerm => $"R_{string.Concat(regexTerm.Regex.Select(c => Regex.IsMatch(c.ToString(), "[A-Za-z0-9]") ? c : '_'))}_{regexTerm.Regex.Length}",
+                    _ => throw new NotSupportedException(),
+                };
 
             string GetTerminalChar(char c)
             {

@@ -21,6 +21,8 @@ namespace DarkLink.ParserGen.Formats.Bnf
 
         Pipe,
 
+        Slash,
+
         DoubleQuote,
 
         SingleQuote,

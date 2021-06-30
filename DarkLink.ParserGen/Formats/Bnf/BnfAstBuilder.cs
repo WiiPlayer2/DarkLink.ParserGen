@@ -33,12 +33,12 @@ namespace DarkLink.ParserGen.Formats.Bnf
 
     internal record BnfRuleTerm(string Rule) : BnfTerm;
 
+    internal record BnfRegexTerm(string Regex) : BnfTerm;
+
     internal class BnfAstBuilder : AstBuilder<BnfNode, NTs>
     {
         public BnfAstBuilder()
         {
-            var __DUMP__ = new Func<object[], BnfNode>(_ => new BnfEmpty());
-
             R(G.P(NTs.Config, G.NT(NTs.Meta), G.NT(NTs.Syntax)), nameof(CreateConfig));
 
             R(G.P(NTs.Meta, G.NT(NTs.MetaEntry)), nameof(SingleEntryMeta));
@@ -52,20 +52,24 @@ namespace DarkLink.ParserGen.Formats.Bnf
             R(G.P(NTs.Syntax, G.NT(NTs.Rule)), nameof(SyntaxFromSingleRule));
             R(G.P(NTs.Syntax, G.NT(NTs.Rule), G.NT(NTs.Syntax)), nameof(SyntaxFromMultipleRules));
             R(G.P(NTs.Rule, G.NT(NTs.OptWhitespace), G.T(Ts.LeftBracket), G.NT(NTs.RuleName), G.T(Ts.RightBracket), G.NT(NTs.OptWhitespace), G.T(Ts.Definition), G.NT(NTs.OptWhitespace), G.NT(NTs.Expression), G.NT(NTs.LineEnd)), nameof(CreateRule));
-            R(G.P(NTs.OptWhitespace, G.T(Ts.Space), G.NT(NTs.OptWhitespace)), __DUMP__);
-            R(G.P(NTs.OptWhitespace), __DUMP__);
+            R(G.P(NTs.OptWhitespace, G.T(Ts.Space), G.NT(NTs.OptWhitespace)), IGNORE);
+            R(G.P(NTs.OptWhitespace), IGNORE);
             R(G.P(NTs.Expression, G.NT(NTs.List)), nameof(SingleListExpression));
             R(G.P(NTs.Expression, G.NT(NTs.List), G.NT(NTs.OptWhitespace), G.T(Ts.Pipe), G.NT(NTs.OptWhitespace), G.NT(NTs.Expression)), nameof(MultipleTermsExpression));
-            R(G.P(NTs.LineEnd, G.NT(NTs.OptWhitespace), G.T(Ts.EOL)), __DUMP__);
-            R(G.P(NTs.LineEnd, G.NT(NTs.LineEnd), G.NT(NTs.LineEnd)), __DUMP__);
+            R(G.P(NTs.LineEnd, G.NT(NTs.OptWhitespace), G.T(Ts.EOL)), IGNORE);
+            R(G.P(NTs.LineEnd, G.NT(NTs.LineEnd), G.NT(NTs.LineEnd)), IGNORE);
             R(G.P(NTs.List, G.NT(NTs.Term)), nameof(SingleTermList));
             R(G.P(NTs.List, G.NT(NTs.Term), G.NT(NTs.OptWhitespace), G.NT(NTs.List)), nameof(MultipleTermList));
 
             R(G.P(NTs.Term, G.NT(NTs.Literal)), nameof(LiteralTerm));
             R(G.P(NTs.Term, G.T(Ts.LeftBracket), G.NT(NTs.RuleName), G.T(Ts.RightBracket)), nameof(RuleTerm));
+            R(G.P(NTs.Term, G.T(Ts.Slash), G.NT(NTs.Regex), G.T(Ts.Slash)), MAP(nameof(RegexTerm), 1));
 
-            R(G.P(NTs.Literal, G.T(Ts.DoubleQuote), G.NT(NTs.Text1), G.T(Ts.DoubleQuote)), Select(1));
-            R(G.P(NTs.Literal, G.T(Ts.SingleQuote), G.NT(NTs.Text2), G.T(Ts.SingleQuote)), Select(1));
+            R(G.P(NTs.Regex, G.NT(NTs.Character)), nameof(StringFromChar));
+            R(G.P(NTs.Regex, G.NT(NTs.Character), G.NT(NTs.Regex)), nameof(PrependCharToString));
+
+            R(G.P(NTs.Literal, G.T(Ts.DoubleQuote), G.NT(NTs.Text1), G.T(Ts.DoubleQuote)), SELECT(1));
+            R(G.P(NTs.Literal, G.T(Ts.SingleQuote), G.NT(NTs.Text2), G.T(Ts.SingleQuote)), SELECT(1));
             R(G.P(NTs.Text1), nameof(EmptyString));
             R(G.P(NTs.Text1, G.NT(NTs.Character1), G.NT(NTs.Text1)), nameof(PrependCharToString));
             R(G.P(NTs.Text2), nameof(EmptyString));
@@ -83,6 +87,7 @@ namespace DarkLink.ParserGen.Formats.Bnf
             R(G.P(NTs.Symbol, G.T(Ts.Pipe)), nameof(CreateChar));
             R(G.P(NTs.Symbol, G.T(Ts.Dash)), nameof(CreateChar));
             R(G.P(NTs.Symbol, G.T(Ts.Sharp)), nameof(CreateChar));
+            R(G.P(NTs.Symbol, G.T(Ts.Slash)), nameof(CreateChar));
 
             R(G.P(NTs.Character1, G.NT(NTs.Character)), nameof(Pass));
             R(G.P(NTs.Character1, G.T(Ts.SingleQuote)), nameof(CreateChar));
@@ -93,8 +98,6 @@ namespace DarkLink.ParserGen.Formats.Bnf
             R(G.P(NTs.RuleChar, G.NT(NTs.Letter)), nameof(Pass));
             R(G.P(NTs.RuleChar, G.NT(NTs.Digit)), nameof(Pass));
             R(G.P(NTs.RuleChar, G.T(Ts.Dash)), nameof(CreateChar));
-
-            Func<object[], BnfNode> Select(int index) => args => (BnfNode)args[index];
         }
 
         private BnfString AppendCharToString(BnfString s, BnfChar c)
@@ -131,6 +134,9 @@ namespace DarkLink.ParserGen.Formats.Bnf
 
         private BnfString PrependCharToString(BnfChar c, BnfString s)
             => new BnfString(c.C + s.S);
+
+        private BnfRegexTerm RegexTerm(BnfString regex)
+            => new BnfRegexTerm(regex.S);
 
         private BnfRuleTerm RuleTerm(Token<Ts> _0, BnfString ruleName, Token<Ts> _1)
             => new BnfRuleTerm(ruleName.S);

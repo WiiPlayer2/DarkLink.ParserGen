@@ -121,7 +121,7 @@ namespace DarkLink.ParserGen.Parsing
                 var newArgs = new object[indices.Length];
                 for (var i = 0; i < newArgs.Length; i++)
                     newArgs[i] = args[indices[i]];
-                return (T)methodInfo.Invoke(this, args);
+                return (T)methodInfo.Invoke(this, newArgs);
             };
         }
 

@@ -33,6 +33,8 @@ namespace DarkLink.ParserGen.Formats.Bnf
 
         Literal,
 
+        Regex,
+
         Text1,
 
         Text2,
