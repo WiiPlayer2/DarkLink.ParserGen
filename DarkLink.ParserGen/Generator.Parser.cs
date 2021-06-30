@@ -17,7 +17,7 @@ namespace DarkLink.ParserGen
 
             private readonly Lexer<Terminals> lexer;
 
-            public Parser(Dictionary<Production<NonTerminals>, Func<object[], T>> callbacks)
+            public Parser(IReadOnlyDictionary<Production<NonTerminals>, Func<object[], T>> callbacks)
             {{
                 var lexerRules = new Dictionary<Terminals, Lexer<Terminals>.Rule>()
                 {{");
