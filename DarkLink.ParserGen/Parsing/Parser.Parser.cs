@@ -107,7 +107,6 @@ namespace DarkLink.ParserGen.Parsing
                                 H.Add(A.LR0.Production.Left, (BranchNode)w);
                             }
 
-                            // This might not be entirely correct. An item matching this predicate may be added during an iteration.
                             foreach (var item in E[h])
                             {
                                 if (!(!item.LR0.IsFinished && item.LR0.Current == A.LR0.Production.Left))
