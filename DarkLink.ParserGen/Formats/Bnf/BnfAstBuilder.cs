@@ -71,9 +71,17 @@ namespace DarkLink.ParserGen.Formats.Bnf
             R(G.P(NTs.Character, G.NT(NTs.Letter)), nameof(Pass));
             R(G.P(NTs.Character, G.NT(NTs.Digit)), nameof(Pass));
             R(G.P(NTs.Character, G.NT(NTs.Symbol)), nameof(Pass));
+
             R(G.P(NTs.Letter, G.T(Ts.Letter)), nameof(CreateChar));
             R(G.P(NTs.Digit, G.T(Ts.Digit)), nameof(CreateChar));
             R(G.P(NTs.Symbol, G.T(Ts.Symbol)), nameof(CreateChar));
+            R(G.P(NTs.Symbol, G.T(Ts.LeftBracket)), nameof(CreateChar));
+            R(G.P(NTs.Symbol, G.T(Ts.RightBracket)), nameof(CreateChar));
+            R(G.P(NTs.Symbol, G.T(Ts.Space)), nameof(CreateChar));
+            R(G.P(NTs.Symbol, G.T(Ts.Pipe)), nameof(CreateChar));
+            R(G.P(NTs.Symbol, G.T(Ts.Dash)), nameof(CreateChar));
+            R(G.P(NTs.Symbol, G.T(Ts.Sharp)), nameof(CreateChar));
+
             R(G.P(NTs.Character1, G.NT(NTs.Character)), nameof(Pass));
             R(G.P(NTs.Character1, G.T(Ts.SingleQuote)), nameof(CreateChar));
             R(G.P(NTs.Character2, G.NT(NTs.Character)), nameof(Pass));
