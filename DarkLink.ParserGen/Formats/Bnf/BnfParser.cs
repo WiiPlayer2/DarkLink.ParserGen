@@ -64,9 +64,11 @@ namespace DarkLink.ParserGen.Formats.Bnf
         private static Config CreateConfig(BnfMeta meta, string className, Grammar<string, string> grammar, Dictionary<string, TokenRule> literalRules)
         {
             var @namespace = meta.Entries[NAMESPACE];
+            var start = meta.Entries[START];
+
             var typeInfo = new TypeInfo(@namespace, className, "internal");
             var lexerInfo = new LexerInfo(literalRules.Select(CreateTokenInfo).ToList());
-            var parserInfo = new ParserInfo(START, null, grammar.Productions.Select(CreateRule).ToList());
+            var parserInfo = new ParserInfo(start, null, grammar.Productions.Select(CreateRule).ToList());
             return new Config(typeInfo, lexerInfo, parserInfo);
 
             TokenInfo CreateTokenInfo(KeyValuePair<string, TokenRule> pair)
