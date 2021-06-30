@@ -33,10 +33,11 @@ namespace DarkLink.ParserGen
                 context.CancellationToken.ThrowIfCancellationRequested();
 
                 var secondExtension = Path.GetExtension(Path.GetFileNameWithoutExtension(additionalText.Path)).ToLowerInvariant();
+                var filename = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(additionalText.Path));
 
                 var config = secondExtension switch
                 {
-                    ".bnf" => BnfParser.Parse(context, additionalText),
+                    ".bnf" => BnfParser.Parse(context, additionalText, filename),
                     _ => SimpleParser.Parse(context, additionalText),
                 };
                 if (config is null)

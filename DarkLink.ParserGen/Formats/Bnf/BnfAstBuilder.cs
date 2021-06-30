@@ -1,5 +1,6 @@
 ﻿using DarkLink.ParserGen.Parsing;
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 
 namespace DarkLink.ParserGen.Formats.Bnf
@@ -7,6 +8,12 @@ namespace DarkLink.ParserGen.Formats.Bnf
     internal record BnfNode();
 
     internal record BnfRule(string Name, BnfExpression Expression) : BnfNode;
+
+    internal record BnfConfig(BnfMeta Meta, BnfSyntax Syntax) : BnfNode;
+
+    internal record BnfMetaEntry(string Config, string Value) : BnfNode;
+
+    internal record BnfMeta(ImmutableDictionary<string, string> Entries) : BnfNode;
 
     internal record BnfSyntax(ImmutableList<BnfRule> Rules) : BnfNode;
 
@@ -31,6 +38,16 @@ namespace DarkLink.ParserGen.Formats.Bnf
         public BnfAstBuilder()
         {
             var __DUMP__ = new Func<object[], BnfNode>(_ => new BnfEmpty());
+
+            R(G.P(NTs.Config, G.NT(NTs.Meta), G.NT(NTs.Syntax)), nameof(CreateConfig));
+
+            R(G.P(NTs.Meta, G.NT(NTs.MetaEntry)), nameof(SingleEntryMeta));
+            R(G.P(NTs.Meta, G.NT(NTs.MetaEntry), G.NT(NTs.Meta)), nameof(MultipleEntryMeta));
+            R(G.P(NTs.MetaEntry, G.T(Ts.Sharp), G.NT(NTs.OptWhitespace), G.NT(NTs.ConfigName), G.NT(NTs.OptWhitespace), G.NT(NTs.ConfigValue), G.NT(NTs.LineEnd)), nameof(CreateMetaEntry));
+            R(G.P(NTs.ConfigName, G.NT(NTs.Letter)), nameof(StringFromChar));
+            R(G.P(NTs.ConfigName, G.NT(NTs.Letter), G.NT(NTs.ConfigName)), nameof(PrependCharToString));
+            R(G.P(NTs.ConfigValue, G.NT(NTs.Character)), nameof(StringFromChar));
+            R(G.P(NTs.ConfigValue, G.NT(NTs.Character), G.NT(NTs.ConfigValue)), nameof(PrependCharToString));
 
             R(G.P(NTs.Syntax, G.NT(NTs.Rule)), nameof(SyntaxFromSingleRule));
             R(G.P(NTs.Syntax, G.NT(NTs.Rule), G.NT(NTs.Syntax)), nameof(SyntaxFromMultipleRules));
@@ -76,6 +93,12 @@ namespace DarkLink.ParserGen.Formats.Bnf
         private BnfChar CreateChar(Token<Ts> charToken)
             => new BnfChar(charToken.Value[0]);
 
+        private BnfConfig CreateConfig(BnfMeta meta, BnfSyntax syntax)
+            => new BnfConfig(meta, syntax);
+
+        private BnfMetaEntry CreateMetaEntry(Token<Ts> _0, BnfNode _1, BnfString configName, BnfNode _2, BnfString configValue, BnfNode _3)
+            => new BnfMetaEntry(configName.S, configValue.S);
+
         private BnfRule CreateRule(BnfEmpty _0, Token<Ts> _1, BnfString ruleName, Token<Ts> _2, BnfEmpty _3, Token<Ts> _4, BnfEmpty _5, BnfExpression expression, BnfEmpty _6)
             => new BnfRule(ruleName.S, expression);
 
@@ -84,6 +107,9 @@ namespace DarkLink.ParserGen.Formats.Bnf
 
         private BnfLiteralTerm LiteralTerm(BnfString literal)
             => new BnfLiteralTerm(literal.S);
+
+        private BnfMeta MultipleEntryMeta(BnfMetaEntry entry, BnfMeta meta)
+            => new BnfMeta(meta.Entries.Add(entry.Config, entry.Value));
 
         private BnfTerms MultipleTermList(BnfTerm term, BnfEmpty _, BnfTerms terms)
             => new BnfTerms(terms.Terms.Insert(0, term));
@@ -98,6 +124,9 @@ namespace DarkLink.ParserGen.Formats.Bnf
 
         private BnfRuleTerm RuleTerm(Token<Ts> _0, BnfString ruleName, Token<Ts> _1)
             => new BnfRuleTerm(ruleName.S);
+
+        private BnfMeta SingleEntryMeta(BnfMetaEntry entry)
+            => new BnfMeta(ImmutableDictionary.CreateRange(new[] { new KeyValuePair<string, string>(entry.Config, entry.Value) }));
 
         private BnfExpression SingleListExpression(BnfTerms terms)
             => new BnfExpression(ImmutableList.Create(terms));

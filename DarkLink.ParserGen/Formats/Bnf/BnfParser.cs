@@ -11,14 +11,16 @@ namespace DarkLink.ParserGen.Formats.Bnf
 {
     internal static class BnfParser
     {
-        private const string START = "START";
+        private const string NAMESPACE = "namespace";
+
+        private const string START = "start";
 
         private static readonly Encoding encoding = new UTF8Encoding(false);
 
-        public static Config? Parse(GeneratorExecutionContext context, AdditionalText additionalText)
+        public static Config? Parse(GeneratorExecutionContext context, AdditionalText additionalText, string className)
         {
             var astBuilder = new BnfAstBuilder();
-            var grammar = G.Create<NTs, Ts>(new HashSet<Production<NTs>>(astBuilder.Callbacks.Keys), NTs.Syntax);
+            var grammar = G.Create<NTs, Ts>(new HashSet<Production<NTs>>(astBuilder.Callbacks.Keys), NTs.Config);
             var lexerRules = new Dictionary<Ts, Lexer<Ts>.Rule>()
             {
                 { Ts.LeftBracket, new Lexer<Ts>.LiteralRule("<") },
@@ -32,6 +34,7 @@ namespace DarkLink.ParserGen.Formats.Bnf
                 { Ts.EOL, new Lexer<Ts>.RegexRule(new Regex("\\r?\\n")) },
                 { Ts.Letter, new Lexer<Ts>.RegexRule(new Regex("[A-Za-z]")) },
                 { Ts.Digit, new Lexer<Ts>.RegexRule(new Regex("[0-9]")) },
+                { Ts.Sharp, new Lexer<Ts>.LiteralRule("#") },
                 { Ts.Symbol, new Lexer<Ts>.RegexRule(new Regex(".")) },
             };
             var lexer = new Lexer<Ts>(lexerRules);
@@ -46,13 +49,15 @@ namespace DarkLink.ParserGen.Formats.Bnf
             if (syntax.IsEmpty())
                 return null;
 
-            var (parsedGrammar, literals) = CreateGrammar((BnfSyntax)syntax.First());
-            return CreateConfig(parsedGrammar, literals);
+            var config = (BnfConfig)syntax.First();
+            var (parsedGrammar, literals) = CreateGrammar(config);
+            return CreateConfig(config.Meta, className, parsedGrammar, literals);
         }
 
-        private static Config CreateConfig(Grammar<string, string> grammar, Dictionary<string, string> literals)
+        private static Config CreateConfig(BnfMeta meta, string className, Grammar<string, string> grammar, Dictionary<string, string> literals)
         {
-            var typeInfo = new TypeInfo("TestingNS", "TestingC", "internal");
+            var @namespace = meta.Entries[NAMESPACE];
+            var typeInfo = new TypeInfo(@namespace, className, "internal");
             var lexerInfo = new LexerInfo(literals.Select(CreateTokenInfo).ToList());
             var parserInfo = new ParserInfo(START, null, grammar.Productions.Select(CreateRule).ToList());
             return new Config(typeInfo, lexerInfo, parserInfo);
@@ -72,14 +77,15 @@ namespace DarkLink.ParserGen.Formats.Bnf
                 };
         }
 
-        private static (Grammar<string, string>, Dictionary<string, string>) CreateGrammar(BnfSyntax syntax)
+        private static (Grammar<string, string>, Dictionary<string, string>) CreateGrammar(BnfConfig config)
         {
+            var syntax = config.Syntax;
             var literals = new Dictionary<string, string>();
             var nonTerminals = new HashSet<NonTerminalSymbol<string>>(syntax.Rules.Select(o => G.NT(o.Name)));
             var productions = new HashSet<Production<string>>(syntax.Rules.SelectMany(CreateProductions));
             var terminals = new HashSet<TerminalSymbol<string>>(productions.SelectMany(o => o.Right.Symbols).OfType<TerminalSymbol<string>>());
 
-            var grammar = new Grammar<string, string>(nonTerminals, terminals, productions, G.NT(START));
+            var grammar = new Grammar<string, string>(nonTerminals, terminals, productions, G.NT(config.Meta.Entries[START]));
 
             return (grammar, literals);
 

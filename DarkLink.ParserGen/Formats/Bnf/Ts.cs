@@ -31,8 +31,10 @@ namespace DarkLink.ParserGen.Formats.Bnf
 
         Digit,
 
-        Symbol,
-
         Dash,
+
+        Sharp,
+
+        Symbol,
     }
 }

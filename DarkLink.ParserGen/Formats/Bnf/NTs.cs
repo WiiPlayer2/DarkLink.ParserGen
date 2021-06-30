@@ -11,6 +11,12 @@ namespace DarkLink.ParserGen.Formats.Bnf
 {
     internal enum NTs
     {
+        Config,
+
+        Meta,
+
+        MetaEntry,
+
         Syntax,
 
         Rule,
@@ -46,5 +52,9 @@ namespace DarkLink.ParserGen.Formats.Bnf
         RuleName,
 
         RuleChar,
+
+        ConfigName,
+
+        ConfigValue,
     }
 }
