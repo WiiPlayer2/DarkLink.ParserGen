@@ -41,7 +41,10 @@ namespace DarkLink.ParserGen
                     _ => SimpleParser.Parse(context, additionalText),
                 };
                 if (config is null)
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(Diagnostics.ParserFileInvalid, Location.Create(additionalText.Path, default, default), additionalText.Path));
                     continue;
+                }
 
                 Generate(context, config);
             }

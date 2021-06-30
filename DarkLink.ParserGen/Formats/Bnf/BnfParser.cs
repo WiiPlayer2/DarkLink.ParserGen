@@ -42,12 +42,18 @@ namespace DarkLink.ParserGen.Formats.Bnf
 
             var sourceText = additionalText.GetText(context.CancellationToken);
             if (sourceText is null)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(Diagnostics.FailedToOpenFile, Location.Create(additionalText.Path, default, default), additionalText.Path));
                 return null;
+            }
 
             var tokens = lexer.Lex(sourceText.ToString()).ToList();
             var syntax = parser.Parse(tokens).ToList();
             if (syntax.IsEmpty())
+            {
+                context.ReportDiagnostic(Diagnostic.Create(Diagnostics.FailedToParse, Location.Create(additionalText.Path, default, default), additionalText.Path));
                 return null;
+            }
 
             var config = (BnfConfig)syntax.First();
             var (parsedGrammar, literals) = CreateGrammar(config);
