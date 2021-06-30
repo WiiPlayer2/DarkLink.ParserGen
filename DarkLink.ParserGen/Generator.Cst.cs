@@ -35,21 +35,74 @@ namespace DarkLink.ParserGen
         {{");
 
             GenerateCstNodes(writer, config);
+            GenerateCstBuilder(writer, config);
 
             writer.WriteLine($@"
         }}");
         }
 
+        private void GenerateCstBuilder(TextWriter writer, Config config)
+        {
+            var symbolProductions = GetProductionLookup(config.Grammar.Productions);
+
+            writer.WriteLine($@"
+            public class CstBuilder : AstBuilder<Node, NonTerminals>
+            {{
+                public CstBuilder()
+                {{");
+
+            foreach (var production in config.Grammar.Productions)
+            {
+                var name = GetProductionName(production);
+                var productionType = GetProductionType(production);
+                var symbolType = GetSymbolType(production.Left, symbolProductions);
+
+                var names = production.Right.Symbols.Select(o => o switch
+                {
+                    TerminalSymbol<string> ts => ts.Value,
+                    NonTerminalSymbol<string> nts => nts.Value,
+                    _ => throw new NotSupportedException(),
+                });
+                var suffix = string.Join("_", names);
+                var symbolClassName = symbolType switch
+                {
+                    SymbolType.Single => $"{production.Left.Value}Node",
+                    SymbolType.OnlyTerminals => $"{production.Left.Value}Node",
+                    SymbolType.Multiple => $"{production.Left.Value}__{suffix}__Node",
+                    _ => throw new NotSupportedException(),
+                };
+                var args = production.Right.Symbols.Select((s, i) => s switch
+                {
+                    TerminalSymbol<string> ts => $"(Token<Terminals>)args[{i}]",
+                    NonTerminalSymbol<string> nts => $"({nts.Value}Node)args[{i}]",
+                    _ => throw new NotSupportedException(),
+                });
+                var code = productionType switch
+                {
+                    ProductionType.Empty => $"new {symbolClassName}()",
+                    ProductionType.OnlyTerminals => $"new {symbolClassName}(args.Cast<Token<Terminals>>().ToList())",
+                    ProductionType.Mixed => $"new {symbolClassName}({string.Join(", ", args)})",
+                    _ => throw new NotSupportedException(),
+                };
+
+                writer.WriteLine($"R(Productions.{name}, args => {code});");
+            }
+
+            writer.WriteLine($@"
+                }}
+            }}");
+        }
+
         private void GenerateCstNodes(TextWriter writer, Config config)
         {
-            var symbolProductions = config.Grammar.Productions.Select(p => (Type: GetProductionType(p), Production: p)).ToLookup(o => o.Production.Left);
+            var symbolProductions = GetProductionLookup(config.Grammar.Productions);
 
             writer.WriteLine($@"
             public record Node();");
 
             foreach (var symbol in config.Grammar.Variables)
             {
-                switch (GetSymbolType(symbol))
+                switch (GetSymbolType(symbol, symbolProductions))
                 {
                     case SymbolType.Single:
                         {
@@ -79,17 +132,6 @@ namespace DarkLink.ParserGen
                             }
                         }
                         break;
-                }
-
-                SymbolType GetSymbolType(NonTerminalSymbol<string> symbol)
-                {
-                    if (symbolProductions[symbol].Count() == 1)
-                        return SymbolType.Single;
-
-                    if (symbolProductions[symbol].All(o => o.Type == ProductionType.OnlyTerminals || o.Type == ProductionType.Empty))
-                        return SymbolType.OnlyTerminals;
-
-                    return SymbolType.Multiple;
                 }
 
                 void WriteNode(Production<string> production, ProductionType type, string suffix, string baseClass)
@@ -124,24 +166,38 @@ namespace DarkLink.ParserGen
                 {
                     var args = production.Right.Symbols.Select((s, i) => s switch
                     {
-                        TerminalSymbol<string> ts => $"Token<Terminals> token{i}",
-                        NonTerminalSymbol<string> nts => $"{nts.Value}Node {nts.Value.Decapitalize()}{i}",
+                        TerminalSymbol<string> ts => $"Token<Terminals> Token{i}",
+                        NonTerminalSymbol<string> nts => $"{nts.Value}Node {nts.Value}{i}",
                         _ => throw new NotImplementedException(),
                     });
                     writer.WriteLine($"public record {production.Left.Value}{suffix}Node({string.Join(", ", args)}) : {baseClass};");
                 }
             }
+        }
 
-            ProductionType GetProductionType(Production<string> production)
-            {
-                if (production.Right.IsEmpty)
-                    return ProductionType.Empty;
+        private ILookup<NonTerminalSymbol<string>, (ProductionType Type, Production<string> Production)> GetProductionLookup(IEnumerable<Production<string>> productions)
+                    => productions.Select(p => (Type: GetProductionType(p), Production: p)).ToLookup(o => o.Production.Left);
 
-                if (production.Right.Symbols.All(o => o is TerminalSymbol<string>))
-                    return ProductionType.OnlyTerminals;
+        private ProductionType GetProductionType(Production<string> production)
+        {
+            if (production.Right.IsEmpty)
+                return ProductionType.Empty;
 
-                return ProductionType.Mixed;
-            }
+            if (production.Right.Symbols.All(o => o is TerminalSymbol<string>))
+                return ProductionType.OnlyTerminals;
+
+            return ProductionType.Mixed;
+        }
+
+        private SymbolType GetSymbolType(NonTerminalSymbol<string> symbol, ILookup<NonTerminalSymbol<string>, (ProductionType Type, Production<string> Production)> symbolProductions)
+        {
+            if (symbolProductions[symbol].Count() == 1)
+                return SymbolType.Single;
+
+            if (symbolProductions[symbol].All(o => o.Type == ProductionType.OnlyTerminals || o.Type == ProductionType.Empty))
+                return SymbolType.OnlyTerminals;
+
+            return SymbolType.Multiple;
         }
     }
 }
