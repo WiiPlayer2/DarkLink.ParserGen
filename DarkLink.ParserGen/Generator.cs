@@ -59,8 +59,11 @@ namespace DarkLink.ParserGen
             foreach (var file in files)
             {
                 using var stream = assembly.GetManifestResourceStream(file);
-                var sourceText = SourceText.From(stream, sourceEncoding, canBeEmbedded: true);
-                context.AddSource(file, sourceText);
+                using var reader = new StreamReader(stream, sourceEncoding);
+                var content = "#nullable enable\n" + reader.ReadToEnd();
+                var sourceText = SourceText.From(content, sourceEncoding);
+                var newFilename = Path.GetFileNameWithoutExtension(file) + ".g" + Path.GetExtension(file);
+                context.AddSource(newFilename, sourceText);
             }
         }
 
