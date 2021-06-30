@@ -81,7 +81,7 @@ namespace DarkLink.ParserGen.Formats.Bnf
         {
             var syntax = config.Syntax;
             var literals = new Dictionary<string, string>();
-            var nonTerminals = new HashSet<NonTerminalSymbol<string>>(syntax.Rules.Select(o => G.NT(o.Name)));
+            var nonTerminals = new HashSet<NonTerminalSymbol<string>>(syntax.Rules.Select(o => G.NT(GetNonTerminalName(o.Name))));
             var productions = new HashSet<Production<string>>(syntax.Rules.SelectMany(CreateProductions));
             var terminals = new HashSet<TerminalSymbol<string>>(productions.SelectMany(o => o.Right.Symbols).OfType<TerminalSymbol<string>>());
 
@@ -93,7 +93,7 @@ namespace DarkLink.ParserGen.Formats.Bnf
                 => rule.Expression.TermLists.Select(l => CreateProduction(rule, l));
 
             Production<string> CreateProduction(BnfRule rule, BnfTerms terms)
-                => G.P(rule.Name, terms.Terms.Select(CreateSymbol).WhereNotNull().ToArray());
+                => G.P(GetNonTerminalName(rule.Name), terms.Terms.Select(CreateSymbol).WhereNotNull().ToArray());
 
             Symbol? CreateSymbol(BnfTerm term)
             {
@@ -101,13 +101,16 @@ namespace DarkLink.ParserGen.Formats.Bnf
                 {
                     BnfLiteralTerm { Literal: "" } => (Symbol?)null,
                     BnfLiteralTerm literalTerm => G.T(GetTerminalName(literalTerm.Literal)),
-                    BnfRuleTerm ruleTerm => G.NT(ruleTerm.Rule),
+                    BnfRuleTerm ruleTerm => G.NT(GetNonTerminalName(ruleTerm.Rule)),
                     _ => throw new NotSupportedException(),
                 };
                 if (symbol is TerminalSymbol<string> terminalSymbol && term is BnfLiteralTerm lt)
                     literals[terminalSymbol.Value] = lt.Literal;
                 return symbol;
             }
+
+            string GetNonTerminalName(string name)
+                => name.Replace('-', '_');
 
             string GetTerminalName(string literal)
                 => $"_{string.Concat(literal.Select(GetTerminalChar))}";

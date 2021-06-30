@@ -60,8 +60,10 @@ namespace DarkLink.ParserGen.Formats.Bnf
             R(G.P(NTs.LineEnd, G.NT(NTs.LineEnd), G.NT(NTs.LineEnd)), __DUMP__);
             R(G.P(NTs.List, G.NT(NTs.Term)), nameof(SingleTermList));
             R(G.P(NTs.List, G.NT(NTs.Term), G.NT(NTs.OptWhitespace), G.NT(NTs.List)), nameof(MultipleTermList));
+
             R(G.P(NTs.Term, G.NT(NTs.Literal)), nameof(LiteralTerm));
             R(G.P(NTs.Term, G.T(Ts.LeftBracket), G.NT(NTs.RuleName), G.T(Ts.RightBracket)), nameof(RuleTerm));
+
             R(G.P(NTs.Literal, G.T(Ts.DoubleQuote), G.NT(NTs.Text1), G.T(Ts.DoubleQuote)), Select(1));
             R(G.P(NTs.Literal, G.T(Ts.SingleQuote), G.NT(NTs.Text2), G.T(Ts.SingleQuote)), Select(1));
             R(G.P(NTs.Text1), nameof(EmptyString));
