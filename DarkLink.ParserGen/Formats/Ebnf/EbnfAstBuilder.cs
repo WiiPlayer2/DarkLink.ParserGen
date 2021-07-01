@@ -30,7 +30,11 @@ namespace DarkLink.ParserGen.Formats.Ebnf
 
     internal record EbnfGrammar(ImmutableList<EbnfRule> Rules) : EbnfNode;
 
-    internal record EbnfConfig(EbnfGrammar Grammar) : EbnfNode;
+    internal record EbnfConfig(EbnfMeta Meta, EbnfGrammar Grammar) : EbnfNode;
+
+    internal record EbnfMeta(ImmutableDictionary<string, string> Entries) : EbnfNode;
+
+    internal record EbnfMetaEntry(string Key, string Value) : EbnfNode;
 
     internal class EbnfAstBuilder : AstBuilder<EbnfNode, NTs>
     {
@@ -51,6 +55,7 @@ namespace DarkLink.ParserGen.Formats.Ebnf
             R(G.P(NTs.Symbol, G.T(Ts.Pipe)), nameof(CharString));
             R(G.P(NTs.Symbol, G.T(Ts.Comma)), nameof(CharString));
             R(G.P(NTs.Symbol, G.T(Ts.Semicolon)), nameof(CharString));
+            R(G.P(NTs.Symbol, G.T(Ts.Dollar)), nameof(CharString));
 
             R(G.P(NTs.Character, G.NT(NTs.Letter)), PASS);
             R(G.P(NTs.Character, G.NT(NTs.Digit)), PASS);
@@ -83,8 +88,16 @@ namespace DarkLink.ParserGen.Formats.Ebnf
             R(G.P(NTs.Grammar), nameof(EmptyGrammar));
             R(G.P(NTs.Grammar, G.NT(NTs.Rule), G.NT(NTs.Grammar)), nameof(ExtendGrammar));
 
-            R(G.P(NTs.Config, G.NT(NTs.Grammar)), nameof(Config));
+            R(G.P(NTs.MetaEntry, G.T(Ts.Dollar), G.NT(NTs.Identifier), G.T(Ts.Equals), G.NT(NTs.Terminal), G.T(Ts.Semicolon)), MAP(nameof(MetaEntry), 1, 3));
+
+            R(G.P(NTs.Meta), nameof(EmptyMeta));
+            R(G.P(NTs.Meta, G.NT(NTs.MetaEntry), G.NT(NTs.Meta)), nameof(AddMetaEntry));
+
+            R(G.P(NTs.Config, G.NT(NTs.Meta), G.NT(NTs.Grammar)), nameof(Config));
         }
+
+        private EbnfMeta AddMetaEntry(EbnfMetaEntry entry, EbnfMeta meta)
+            => new EbnfMeta(meta.Entries.Add(entry.Key, entry.Value));
 
         private EbnfAnd And(EbnfExpression left, EbnfExpression right)
             => new EbnfAnd(left, right);
@@ -95,11 +108,14 @@ namespace DarkLink.ParserGen.Formats.Ebnf
         private EbnfString Concat(EbnfString s1, EbnfString s2)
             => new EbnfString(s1.S + s2.S);
 
-        private EbnfConfig Config(EbnfGrammar grammar)
-            => new EbnfConfig(grammar);
+        private EbnfConfig Config(EbnfMeta meta, EbnfGrammar grammar)
+            => new EbnfConfig(meta, grammar);
 
         private EbnfGrammar EmptyGrammar()
             => new EbnfGrammar(ImmutableList.Create<EbnfRule>());
+
+        private EbnfMeta EmptyMeta()
+            => new EbnfMeta(ImmutableDictionary.Create<string, string>());
 
         private EbnfString EmptyString()
             => new EbnfString(string.Empty);
@@ -109,6 +125,9 @@ namespace DarkLink.ParserGen.Formats.Ebnf
 
         private EbnfGroup Group(EbnfExpression expression)
             => new EbnfGroup(expression);
+
+        private EbnfMetaEntry MetaEntry(EbnfString key, EbnfString value)
+            => new EbnfMetaEntry(key.S, value.S);
 
         private EbnfOption Option(EbnfExpression expression)
             => new EbnfOption(expression);

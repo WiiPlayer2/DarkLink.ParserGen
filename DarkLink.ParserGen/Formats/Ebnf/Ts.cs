@@ -39,5 +39,7 @@ namespace DarkLink.ParserGen.Formats.Ebnf
         Equals,
 
         Semicolon,
+
+        Dollar,
     }
 }

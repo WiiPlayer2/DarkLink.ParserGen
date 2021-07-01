@@ -11,6 +11,10 @@ namespace DarkLink.ParserGen.Formats.Ebnf
 {
     internal static class EbnfParser
     {
+        private const string NAMESPACE = "namespace";
+
+        private const string START = "start";
+
         private static Encoding encoding = new UTF8Encoding(false);
 
         internal record UnrolledAnd(List<EbnfExpression> Expressions);
@@ -39,6 +43,7 @@ namespace DarkLink.ParserGen.Formats.Ebnf
                 { Ts.Comma, new Lexer<Ts>.LiteralRule(",") },
                 { Ts.Equals, new Lexer<Ts>.LiteralRule("=") },
                 { Ts.Semicolon, new Lexer<Ts>.LiteralRule(";") },
+                { Ts.Dollar, new Lexer<Ts>.LiteralRule("$") },
                 { Ts.Symbol, new Lexer<Ts>.RegexRule(new Regex(@"[<>\.\-]")) },
             };
             var lexer = new Lexer<Ts>(lexerRules);
@@ -64,7 +69,7 @@ namespace DarkLink.ParserGen.Formats.Ebnf
 
             var literalRules = new Dictionary<TerminalSymbol<string>, TokenRule>();
             var parsedGrammar = CreateGrammar(config, literalRules);
-            return CreateConfig(className, parsedGrammar, literalRules);
+            return CreateConfig(config.Meta.Entries, className, parsedGrammar, literalRules);
         }
 
         private static EbnfConfig Cleanup(EbnfConfig config)
@@ -133,10 +138,9 @@ namespace DarkLink.ParserGen.Formats.Ebnf
             }
         }
 
-        private static Config CreateConfig(string className, Grammar<string, string> grammar, Dictionary<TerminalSymbol<string>, TokenRule> literalRules)
+        private static Config CreateConfig(ImmutableDictionary<string, string> entries, string className, Grammar<string, string> grammar, Dictionary<TerminalSymbol<string>, TokenRule> literalRules)
         {
-            //var @namespace = meta.Entries[NAMESPACE];
-            var @namespace = "DemoApp";
+            var @namespace = entries[NAMESPACE];
 
             var typeInfo = new TypeInfo(@namespace, className, "internal");
             var lexerInfo = new LexerInfo(literalRules.Select(CreateTokenInfo).ToList());
@@ -153,7 +157,7 @@ namespace DarkLink.ParserGen.Formats.Ebnf
             var productions = config.Grammar.Rules.SelectMany(r => CreateProduction(r, derivedSymbols, literalRules)).ToSet();
             var variables = productions.Select(o => o.Left).ToSet();
             var alphabet = literalRules.Keys.ToSet();
-            var start = G.NT("START"); // TODO: Implement
+            var start = G.NT(config.Meta.Entries[START]);
             return new(
                 variables,
                 alphabet,

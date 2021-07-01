@@ -31,5 +31,7 @@ namespace DarkLink.ParserGen.Formats.Ebnf
         Grammar,
 
         Config,
+        Meta,
+        MetaEntry,
     }
 }
