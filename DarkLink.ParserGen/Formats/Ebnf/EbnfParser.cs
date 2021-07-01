@@ -258,6 +258,34 @@ namespace DarkLink.ParserGen.Formats.Ebnf
             if ((match = Regex.Match(text, @"^/(?<regex>.*)/$")).Success)
                 return new RegexRule(match.Groups["regex"].Value);
 
+            if ((match = Regex.Match(text, @"((?<enc>\w+) )?0x(?<hex>([0-9A-Fa-f]{2})+)")).Success)
+            {
+                var hex = match.Groups["hex"].Value;
+                var enc = GetEncoding();
+                var length = hex.Length / 2;
+                var bytes = Enumerable.Range(0, length)
+                    .Select(i => byte.Parse(hex.Substring(i * 2, 2), System.Globalization.NumberStyles.HexNumber))
+                    .ToArray();
+                var str = enc.GetString(bytes);
+                return new LiteralRule(str);
+
+                Encoding GetEncoding()
+                {
+                    if (match.Groups["enc"].Success)
+                    {
+                        var enc = match.Groups["enc"].Value;
+                        if (int.TryParse(enc, out var codepage))
+                            return Encoding.GetEncoding(codepage);
+                        else
+                            return Encoding.GetEncoding(enc);
+                    }
+                    else
+                    {
+                        return encoding;
+                    }
+                }
+            }
+
             throw new NotImplementedException();
         }
 
