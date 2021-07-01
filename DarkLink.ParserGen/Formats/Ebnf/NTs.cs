@@ -20,7 +20,7 @@ namespace DarkLink.ParserGen.Formats.Ebnf
 
         Terminal,
 
-        TerminalCont,
+        LiteralCont,
 
         Lhs,
 
@@ -33,5 +33,6 @@ namespace DarkLink.ParserGen.Formats.Ebnf
         Config,
         Meta,
         MetaEntry,
+        Literal,
     }
 }

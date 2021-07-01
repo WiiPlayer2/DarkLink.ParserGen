@@ -16,7 +16,9 @@ namespace DarkLink.ParserGen.Formats.Ebnf
 
     internal record EbnfRuleRef(string Identifier) : EbnfExpression;
 
-    internal record EbnfTerminal(string Literal) : EbnfExpression;
+    internal record EbnfTerminal() : EbnfExpression;
+
+    internal record EbnfLiteral(string Literal) : EbnfTerminal;
 
     internal record EbnfAnd(EbnfExpression Left, EbnfExpression Right) : EbnfExpression;
 
@@ -68,15 +70,17 @@ namespace DarkLink.ParserGen.Formats.Ebnf
             R(G.P(NTs.IdentifierCont, G.NT(NTs.Digit), G.NT(NTs.IdentifierCont)), nameof(Concat));
             R(G.P(NTs.IdentifierCont, G.T(Ts.Underscore), G.NT(NTs.IdentifierCont)), nameof(PrependChar));
 
-            R(G.P(NTs.Terminal, G.T(Ts.SingleQuote), G.NT(NTs.Character), G.NT(NTs.TerminalCont), G.T(Ts.SingleQuote)), MAP(nameof(Concat), 1, 2));
-            R(G.P(NTs.Terminal, G.T(Ts.DoubleQuote), G.NT(NTs.Character), G.NT(NTs.TerminalCont), G.T(Ts.DoubleQuote)), MAP(nameof(Concat), 1, 2));
-            R(G.P(NTs.TerminalCont), nameof(EmptyString));
-            R(G.P(NTs.TerminalCont, G.NT(NTs.Character), G.NT(NTs.TerminalCont)), nameof(Concat));
+            R(G.P(NTs.Literal, G.T(Ts.SingleQuote), G.NT(NTs.Character), G.NT(NTs.LiteralCont), G.T(Ts.SingleQuote)), MAP(nameof(Literal), 1, 2));
+            R(G.P(NTs.Literal, G.T(Ts.DoubleQuote), G.NT(NTs.Character), G.NT(NTs.LiteralCont), G.T(Ts.DoubleQuote)), MAP(nameof(Literal), 1, 2));
+            R(G.P(NTs.LiteralCont, G.NT(NTs.Character), G.NT(NTs.LiteralCont)), nameof(Concat));
+            R(G.P(NTs.LiteralCont), nameof(EmptyString));
+
+            R(G.P(NTs.Terminal, G.NT(NTs.Literal)), PASS);
 
             R(G.P(NTs.Lhs, G.NT(NTs.Identifier)), PASS);
 
             R(G.P(NTs.Rhs, G.NT(NTs.Identifier)), nameof(RuleRef));
-            R(G.P(NTs.Rhs, G.NT(NTs.Terminal)), nameof(Terminal));
+            R(G.P(NTs.Rhs, G.NT(NTs.Terminal)), PASS);
             R(G.P(NTs.Rhs, G.T(Ts.LeftSquareBracket), G.NT(NTs.Rhs), G.T(Ts.RightSquareBracket)), MAP(nameof(Option), 1));
             R(G.P(NTs.Rhs, G.T(Ts.LeftCurlyBracket), G.NT(NTs.Rhs), G.T(Ts.RightCurlyBracket)), MAP(nameof(Repeat), 1));
             R(G.P(NTs.Rhs, G.T(Ts.LeftRoundBracket), G.NT(NTs.Rhs), G.T(Ts.RightRoundBracket)), MAP(nameof(Group), 1));
@@ -126,8 +130,11 @@ namespace DarkLink.ParserGen.Formats.Ebnf
         private EbnfGroup Group(EbnfExpression expression)
             => new EbnfGroup(expression);
 
-        private EbnfMetaEntry MetaEntry(EbnfString key, EbnfString value)
-            => new EbnfMetaEntry(key.S, value.S);
+        private EbnfLiteral Literal(EbnfString first, EbnfString rest)
+            => new EbnfLiteral(first.S + rest.S);
+
+        private EbnfMetaEntry MetaEntry(EbnfString key, EbnfLiteral value)
+            => new EbnfMetaEntry(key.S, value.Literal);
 
         private EbnfOption Option(EbnfExpression expression)
             => new EbnfOption(expression);
@@ -146,8 +153,5 @@ namespace DarkLink.ParserGen.Formats.Ebnf
 
         private EbnfRuleRef RuleRef(EbnfString identifier)
             => new EbnfRuleRef(identifier.S);
-
-        private EbnfTerminal Terminal(EbnfString literal)
-            => new EbnfTerminal(literal.S);
     }
 }

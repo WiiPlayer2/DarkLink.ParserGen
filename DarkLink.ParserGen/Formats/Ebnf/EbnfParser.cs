@@ -218,7 +218,11 @@ namespace DarkLink.ParserGen.Formats.Ebnf
                     case EbnfTerminal terminal:
                         {
                             var symbol = G.T(GetTerminalName(terminal));
-                            literalRules[symbol] = new LiteralRule(terminal.Literal);
+                            literalRules[symbol] = terminal switch
+                            {
+                                EbnfLiteral literal => new LiteralRule(literal.Literal),
+                                _ => throw new NotImplementedException(),
+                            };
                             return (symbol, empty);
                         }
 
@@ -268,7 +272,7 @@ namespace DarkLink.ParserGen.Formats.Ebnf
         private static string GetTerminalName(EbnfTerminal term)
             => term switch
             {
-                EbnfTerminal terminal => $"_{string.Concat(terminal.Literal.Select(GetTerminalChar))}",
+                EbnfLiteral literal => $"_{string.Concat(literal.Literal.Select(GetTerminalChar))}",
                 _ => throw new NotSupportedException(),
             };
 
