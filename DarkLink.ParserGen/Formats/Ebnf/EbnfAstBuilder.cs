@@ -60,11 +60,11 @@ namespace DarkLink.ParserGen.Formats.Ebnf
             R(G.P(NTs.Symbol, G.T(Ts.Comma)), nameof(CharString));
             R(G.P(NTs.Symbol, G.T(Ts.Semicolon)), nameof(CharString));
             R(G.P(NTs.Symbol, G.T(Ts.Dollar)), nameof(CharString));
+            R(G.P(NTs.Symbol, G.T(Ts.Underscore)), nameof(CharString));
 
             R(G.P(NTs.Character, G.NT(NTs.Letter)), PASS);
             R(G.P(NTs.Character, G.NT(NTs.Digit)), PASS);
             R(G.P(NTs.Character, G.NT(NTs.Symbol)), PASS);
-            R(G.P(NTs.Character, G.T(Ts.Underscore)), PASS);
 
             R(G.P(NTs.Identifier, G.NT(NTs.Letter), G.NT(NTs.IdentifierCont)), nameof(Concat));
             R(G.P(NTs.IdentifierCont), nameof(EmptyString));
