@@ -9,11 +9,14 @@ namespace DarkLink.ParserGen.Parsing
 {
     internal partial class Lexer<TT>
     {
+        private readonly bool ignoreUndefined;
+
         private readonly IReadOnlyDictionary<TT, Rule> rules;
 
-        public Lexer(IReadOnlyDictionary<TT, Rule> rules)
+        public Lexer(IReadOnlyDictionary<TT, Rule> rules, bool ignoreUndefined = true)
         {
             this.rules = rules;
+            this.ignoreUndefined = ignoreUndefined;
         }
 
         public IEnumerable<Token<TT>> Lex(string input)
@@ -86,12 +89,13 @@ namespace DarkLink.ParserGen.Parsing
 
                 if (match is null)
                 {
-                    Current = new(null, input.Substring(currentIndex), currentIndex);
+                    if (!lexer.ignoreUndefined)
+                        Current = new(null, input.Substring(currentIndex), currentIndex);
                     currentIndex = input.Length;
-                    return true;
+                    return !lexer.ignoreUndefined;
                 }
 
-                if (match.Index > currentIndex)
+                if (match.Index > currentIndex && !lexer.ignoreUndefined)
                 {
                     Current = new(null, input.Substring(currentIndex, match.Index - currentIndex), currentIndex);
                     currentIndex = match.Index;
@@ -99,7 +103,7 @@ namespace DarkLink.ParserGen.Parsing
                 }
 
                 Current = new(new(symbol), match.Value, currentIndex);
-                currentIndex += match.Length;
+                currentIndex = match.Index + match.Length;
                 return true;
             }
 

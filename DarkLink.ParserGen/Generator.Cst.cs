@@ -80,6 +80,7 @@ namespace DarkLink.ParserGen
                 });
                 var code = productionType switch
                 {
+                    ProductionType.Empty when (symbolType == SymbolType.OnlyTerminals) => $"new {symbolClassName}(Array.Empty<Token<Terminals>>())",
                     ProductionType.Empty => $"new {symbolClassName}()",
                     ProductionType.OnlyTerminals => $"new {symbolClassName}(args.Cast<Token<Terminals>>().ToList())",
                     ProductionType.Mixed => $"new {symbolClassName}({string.Join(", ", args)})",

@@ -102,7 +102,7 @@ namespace DarkLink.ParserGen.Parsing
                                 w = v;
                             }
 
-                            if (h == i)
+                            if (h == i && H.Contains(new(A.LR0.Production.Left, (BranchNode)w)))
                             {
                                 H.Add(A.LR0.Production.Left, (BranchNode)w);
                             }

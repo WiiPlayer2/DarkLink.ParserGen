@@ -1,4 +1,5 @@
 ﻿using DarkLink.ParserGen.Formats.Bnf;
+using DarkLink.ParserGen.Formats.Ebnf;
 using DarkLink.ParserGen.Formats.Simple;
 using DarkLink.ParserGen.Parsing;
 using Microsoft.CodeAnalysis;
@@ -35,6 +36,7 @@ namespace DarkLink.ParserGen
 
                 var config = secondExtension switch
                 {
+                    ".ebnf" => EbnfParser.Parse(context, additionalText, filename),
                     ".bnf" => BnfParser.Parse(context, additionalText, filename),
                     _ => SimpleParser.Parse(context, additionalText),
                 };

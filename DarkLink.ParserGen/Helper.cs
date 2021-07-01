@@ -10,5 +10,8 @@ namespace DarkLink.ParserGen
             => s == string.Empty
                 ? s
                 : $"{char.ToLower(s[0])}{s.Substring(1)}";
+
+        public static IEnumerable<T> Yield<T>(this T item)
+            => new[] { item };
     }
 }
