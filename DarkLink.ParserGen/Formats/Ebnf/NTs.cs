@@ -34,5 +34,7 @@ namespace DarkLink.ParserGen.Formats.Ebnf
         Meta,
         MetaEntry,
         Literal,
+        Special,
+        SpecialText,
     }
 }

@@ -44,7 +44,8 @@ namespace DarkLink.ParserGen.Formats.Ebnf
                 { Ts.Equals, new Lexer<Ts>.LiteralRule("=") },
                 { Ts.Semicolon, new Lexer<Ts>.LiteralRule(";") },
                 { Ts.Dollar, new Lexer<Ts>.LiteralRule("$") },
-                { Ts.Symbol, new Lexer<Ts>.RegexRule(new Regex(@"[<>\.\-]")) },
+                { Ts.QuestionMark, new Lexer<Ts>.LiteralRule("?") },
+                { Ts.Symbol, new Lexer<Ts>.RegexRule(new Regex(@"[<>\.\-/]")) },
             };
             var lexer = new Lexer<Ts>(lexerRules);
             var parser = new Parser<EbnfNode, NTs, Ts>(grammar, astBuilder.Callbacks);
@@ -221,6 +222,7 @@ namespace DarkLink.ParserGen.Formats.Ebnf
                             literalRules[symbol] = terminal switch
                             {
                                 EbnfLiteral literal => new LiteralRule(literal.Literal),
+                                EbnfSpecialText specialText => FromSpecialText(specialText.Text),
                                 _ => throw new NotImplementedException(),
                             };
                             return (symbol, empty);
@@ -250,6 +252,15 @@ namespace DarkLink.ParserGen.Formats.Ebnf
             }
         }
 
+        private static TokenRule FromSpecialText(string text)
+        {
+            Match match;
+            if ((match = Regex.Match(text, @"^/(?<regex>.*)/$")).Success)
+                return new RegexRule(match.Groups["regex"].Value);
+
+            throw new NotImplementedException();
+        }
+
         private static NonTerminalSymbol<string> GetNewDerivedSymbol(NonTerminalSymbol<string> baseSymbol, HashSet<NonTerminalSymbol<string>> allSymbols)
         {
             var derivedSymbol = baseSymbol;
@@ -273,6 +284,7 @@ namespace DarkLink.ParserGen.Formats.Ebnf
             => term switch
             {
                 EbnfLiteral literal => $"_{string.Concat(literal.Literal.Select(GetTerminalChar))}",
+                EbnfSpecialText specialText => $"S_{string.Concat(specialText.Text.Where(o => Regex.IsMatch(o.ToString(), "[A-Za-z0-9_]")))}_{specialText.Text.Length}",
                 _ => throw new NotSupportedException(),
             };
 

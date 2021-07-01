@@ -41,5 +41,7 @@ namespace DarkLink.ParserGen.Formats.Ebnf
         Semicolon,
 
         Dollar,
+
+        QuestionMark,
     }
 }

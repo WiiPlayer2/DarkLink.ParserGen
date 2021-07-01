@@ -38,6 +38,8 @@ namespace DarkLink.ParserGen.Formats.Ebnf
 
     internal record EbnfMetaEntry(string Key, string Value) : EbnfNode;
 
+    internal record EbnfSpecialText(string Text) : EbnfTerminal;
+
     internal class EbnfAstBuilder : AstBuilder<EbnfNode, NTs>
     {
         public EbnfAstBuilder()
@@ -75,7 +77,13 @@ namespace DarkLink.ParserGen.Formats.Ebnf
             R(G.P(NTs.LiteralCont, G.NT(NTs.Character), G.NT(NTs.LiteralCont)), nameof(Concat));
             R(G.P(NTs.LiteralCont), nameof(EmptyString));
 
+            R(G.P(NTs.SpecialText), nameof(EmptyString));
+            R(G.P(NTs.SpecialText, G.NT(NTs.Character), G.NT(NTs.SpecialText)), nameof(Concat));
+
+            R(G.P(NTs.Special, G.T(Ts.QuestionMark), G.NT(NTs.SpecialText), G.T(Ts.QuestionMark)), MAP(nameof(SpecialText), 1));
+
             R(G.P(NTs.Terminal, G.NT(NTs.Literal)), PASS);
+            R(G.P(NTs.Terminal, G.NT(NTs.Special)), PASS);
 
             R(G.P(NTs.Lhs, G.NT(NTs.Identifier)), PASS);
 
@@ -153,5 +161,8 @@ namespace DarkLink.ParserGen.Formats.Ebnf
 
         private EbnfRuleRef RuleRef(EbnfString identifier)
             => new EbnfRuleRef(identifier.S);
+
+        private EbnfSpecialText SpecialText(EbnfString text)
+            => new EbnfSpecialText(text.S);
     }
 }
