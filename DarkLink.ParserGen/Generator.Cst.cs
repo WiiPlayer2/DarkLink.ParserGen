@@ -100,6 +100,7 @@ namespace DarkLink.ParserGen
             var symbolProductions = GetProductionLookup(config.Grammar.Productions);
 
             writer.WriteLine($@"
+            /// <summary>Base node class.</summary>
             public record Node();");
 
             foreach (var symbol in config.Grammar.Variables)
@@ -120,7 +121,9 @@ namespace DarkLink.ParserGen
                     case SymbolType.Multiple:
                         {
                             var baseClass = $"{symbol.Value}Node";
-                            writer.WriteLine($"public abstract record {baseClass}() : Node;");
+                            writer.WriteLine($@"
+            ///<summary>A node representing {symbol}.</summary>
+            public abstract record {baseClass}() : Node;");
                             foreach (var production in symbolProductions[symbol])
                             {
                                 var names = production.Production.Right.Symbols.Select(o => o switch
@@ -157,6 +160,7 @@ namespace DarkLink.ParserGen
                 void WriteEmptyNode(NonTerminalSymbol<string> symbol, string suffix, string baseClass)
                 {
                     writer.WriteLine($@"
+            ///<summary>A node representing the symbol {symbol}.</summary>
             public record {symbol.Value}{suffix}Node() : {baseClass}
             {{
                 public override string ToString() => string.Empty;
@@ -166,6 +170,7 @@ namespace DarkLink.ParserGen
                 void WriteOnlyTerminalsNode(NonTerminalSymbol<string> symbol, string suffix, string baseClass)
                 {
                     writer.WriteLine($@"
+            ///<summary>A node representing the symbol {symbol}.</summary>
             public record {symbol.Value}{suffix}Node(IReadOnlyList<Token<Terminals>> Tokens) : {baseClass}
             {{
                 public override string ToString() => string.Concat(Tokens.Select(o => o.Value));
@@ -187,6 +192,7 @@ namespace DarkLink.ParserGen
                         _ => throw new NotImplementedException(),
                     });
                     writer.WriteLine($@"
+            ///<summary>A node representing the production {production}.</summary>
             public record {production.Left.Value}{suffix}Node({string.Join(", ", args)}) : {baseClass}
             {{
                 public override string ToString() => $""{string.Concat(props.Select(o => $"{{{o}}}"))}"";
