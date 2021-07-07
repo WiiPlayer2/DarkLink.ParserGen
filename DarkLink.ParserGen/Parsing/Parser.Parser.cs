@@ -28,10 +28,7 @@ namespace DarkLink.ParserGen.Parsing
 
                 foreach (var production in grammar.Productions.Where(p => p.Left == grammar.Start))
                 {
-                    if (IsInSigmaIndexN(production.Right))
-                        E[0].Add(new(new(production, 0), 0, null));
-                    if (production.Right.Length > 0 && production.Right[0] == tokens[0].Symbol)
-                        Q_.Add(new(new(production, 0), 0, null));
+                    CheckWordAndItem(production.Right, 0, new(new(production, 0), 0, null), E[0], null, Q_);
                 }
 
                 for (var i = 0; i <= n; i++)
@@ -52,32 +49,16 @@ namespace DarkLink.ParserGen.Parsing
                             foreach (var production in grammar.Productions.Where(p => p.Left == A.LR0.Current))
                             {
                                 var item = new EarleyItem(new(production, 0), i, null);
-                                if (IsInSigmaIndexN(production.Right) && !E[i].Contains(item))
-                                {
-                                    E[i].Add(item);
-                                    R.Add(item);
-                                }
-                                if (production.Right.Length > 0 && tokens.Count > i && production.Right[0] == tokens[i].Symbol)
-                                {
-                                    Q.Add(item);
-                                }
+                                CheckWordAndItem(production.Right, i, item, E[i], R, Q);
                             }
 
                             if (H.TryGetValue(A.LR0.Current, out v))
                             {
-                                var lr0 = A.LR0 with { Position = A.LR0.Position + 1 };
+                                var lr0 = A.LR0.Step();
                                 var y = (BranchNode)MakeNode(lr0, h, i, w, v, V);
                                 var beta = lr0.Production.Right.Symbols.Skip(lr0.Position).ToArray();
                                 var item = new EarleyItem(lr0, h, y);
-                                if (IsInSigmaIndexN(beta) && !E[i].Contains(item))
-                                {
-                                    E[i].Add(item);
-                                    R.Add(item);
-                                }
-                                if (beta.Length > 0 && tokens.Count > i && beta[0] == tokens[i].Symbol)
-                                {
-                                    Q.Add(item);
-                                }
+                                CheckWordAndItem(beta, i, item, E[i], R, Q);
                             }
                         }
                         else
@@ -115,15 +96,7 @@ namespace DarkLink.ParserGen.Parsing
                                 var y = (BranchNode)MakeNode(item.LR0.Step(), item.Start, i, item.Node, w, V);
                                 var delta = item.LR0.Production.Right.Symbols.Skip(item.LR0.Position + 1).ToArray();
                                 var newItem = new EarleyItem(item.LR0.Step(), item.Start, y);
-                                if (IsInSigmaIndexN(delta) && !E[i].Contains(newItem))
-                                {
-                                    E[i].Add(newItem);
-                                    R.Add(newItem);
-                                }
-                                if (delta.Length > 0 && tokens.Count > i && delta[0] == tokens[i].Symbol)
-                                {
-                                    Q.Add(newItem);
-                                }
+                                CheckWordAndItem(delta, i, newItem, E[i], R, Q);
                             }
                         }
                     }
@@ -143,15 +116,7 @@ namespace DarkLink.ParserGen.Parsing
 
                         var beta = A.LR0.Production.Right.Symbols.Skip(A.LR0.Position + 1).ToArray();
 
-                        if (IsInSigmaIndexN(beta))
-                        {
-                            E[i + 1].Add(new(A.LR0.Step(), h, y));
-                        }
-
-                        if (beta.Length > 0 && tokens.Count > i + 1 && beta[0] == tokens[i + 1].Symbol)
-                        {
-                            Q_.Add(new(A.LR0.Step(), h, y));
-                        }
+                        CheckWordAndItem(beta, i + 1, new(A.LR0.Step(), h, y), E[i + 1], null, Q_);
                     }
                 }
 
@@ -162,6 +127,20 @@ namespace DarkLink.ParserGen.Parsing
                     .WhereNotNull()
                     .ToList();
                 return completedNodes;
+
+                void CheckWordAndItem(Word word, int i, EarleyItem item, OrderedSet<EarleyItem> itemSet, HashSet<EarleyItem>? R, HashSet<EarleyItem> Q)
+                {
+                    if (IsInSigmaIndexN(word) && (R is null || !itemSet.Contains(item)))
+                    {
+                        itemSet.Add(item);
+                        if (R is not null)
+                            R.Add(item);
+                    }
+                    if (word.Length > 0 && tokens.Count > i && word[0] == tokens[i].Symbol)
+                    {
+                        Q.Add(item);
+                    }
+                }
             }
 
             private bool IsInSigmaIndexN(Word word) => word.IsEmpty || word[0] is NonTerminalSymbol<TNT>;
