@@ -8,6 +8,8 @@ using System.Text;
 
 namespace DarkLink.ParserGen.Parsing
 {
+    internal record SyntaxError<TT>(Symbol Expected, Token<TT>? Got);
+
     internal struct Either<TLeft, TRight>
     {
         private readonly bool isLeft;

@@ -17,7 +17,7 @@ namespace DarkLink.ParserGen.Parsing
             forestToParseTree = new(callbacks);
         }
 
-        public Either<T?, IEnumerable<string>> Parse(IReadOnlyList<Token<TT>> tokens)
+        public Either<T?, IEnumerable<SyntaxError<TT>>> Parse(IReadOnlyList<Token<TT>> tokens)
         {
             var result = parser.Parse(tokens);
             return result.MapLeft(solution => forestToParseTree.Transform(solution).GetValueOrDefault());

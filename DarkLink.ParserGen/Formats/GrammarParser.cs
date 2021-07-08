@@ -1,5 +1,6 @@
 ﻿using DarkLink.ParserGen.Parsing;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.Text;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -34,7 +35,8 @@ namespace DarkLink.ParserGen.Formats
                 return null;
             }
 
-            var tokens = lexer.Lex(sourceText.ToString()).ToList();
+            var text = sourceText.ToString();
+            var tokens = lexer.Lex(text).ToList();
             var result = parser.Parse(tokens);
             return result.Match(syntax =>
             {
@@ -50,7 +52,9 @@ namespace DarkLink.ParserGen.Formats
             {
                 foreach (var error in errors)
                 {
-                    context.ReportDiagnostic(Diagnostic.Create(Diagnostics.SyntaxError, Location.Create(additionalText.Path, default, default), error));
+                    var linePositionSpan = GetLinePositionSpan(text, error.Got);
+                    var location = Location.Create(additionalText.Path, default, linePositionSpan);
+                    context.ReportDiagnostic(Diagnostic.Create(Diagnostics.SyntaxError, location, error.Expected, error.Got?.Value, error.Got?.Symbol));
                 }
                 return null;
             });
@@ -59,5 +63,38 @@ namespace DarkLink.ParserGen.Formats
         protected abstract Config? CreateConfig(TRootNode rootNode, string className);
 
         protected abstract Lexer<TT> CreateLexer();
+
+        private static LinePosition GetLinePosition(string text, int index)
+        {
+            var line = 0;
+            var character = 0;
+            for (var i = 0; i < text.Length; i++)
+            {
+                if (i == index)
+                    return new(line, character);
+
+                character++;
+                if (text[i] == '\n')
+                {
+                    line++;
+                    character = 0;
+                }
+            }
+
+            return new(line, character);
+        }
+
+        private static LinePositionSpan GetLinePositionSpan(string text, Token<TT>? token)
+        {
+            if (token is null)
+            {
+                var startAndEnd = GetLinePosition(text, text.Length);
+                return new(startAndEnd, startAndEnd);
+            }
+
+            var start = GetLinePosition(text, token.Index);
+            var end = GetLinePosition(text, token.Index + token.Value.Length);
+            return new(start, end);
+        }
     }
 }

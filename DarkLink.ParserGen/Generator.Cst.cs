@@ -216,16 +216,16 @@ namespace DarkLink.ParserGen
         {
             var startClass = $"{config.Grammar.Start.Value}Node";
             writer.WriteLine($@"
-            private static {startClass}? Parse(Func<Parser<Node>, Node?> parse)
-                => ({startClass}?)parse(new Parser<Node>(new CstBuilder().Callbacks));
+            private static Either<{startClass}?, IEnumerable<SyntaxError<Terminals>>> Parse(Func<Parser<Node>, Either<Node?, IEnumerable<SyntaxError<Terminals>>>> parse)
+                => parse(new Parser<Node>(new CstBuilder().Callbacks)).MapLeft(left => ({startClass}?)left);
 
-            public static {startClass}? Parse(string input)
+            public static Either<{startClass}?, IEnumerable<SyntaxError<Terminals>>> Parse(string input)
                 => Parse(p => p.Parse(input));
 
-            public static {startClass}? Parse(Stream stream)
+            public static Either<{startClass}?, IEnumerable<SyntaxError<Terminals>>> Parse(Stream stream)
                 => Parse(p => p.Parse(stream));
 
-            public static {startClass}? Parse(TextReader reader)
+            public static Either<{startClass}?, IEnumerable<SyntaxError<Terminals>>> Parse(TextReader reader)
                 => Parse(p => p.Parse(reader));
 ");
         }

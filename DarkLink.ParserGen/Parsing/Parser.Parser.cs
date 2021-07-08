@@ -16,7 +16,7 @@ namespace DarkLink.ParserGen.Parsing
                 this.grammar = grammar;
             }
 
-            public Either<Node, IEnumerable<string>> Parse(IReadOnlyList<Token<TT>> tokens)
+            public Either<Node, IEnumerable<SyntaxError<TT>>> Parse(IReadOnlyList<Token<TT>> tokens)
             {
                 var n = tokens.Count;
                 var E = Enumerable.Repeat(0, tokens.Count + 1)
@@ -130,10 +130,11 @@ namespace DarkLink.ParserGen.Parsing
                 if (node is not null)
                     return node;
 
-                var lastRelevantSet = E.LastOrDefault(o => o.Any(s => !s.LR0.IsFinished)) ?? new OrderedSet<EarleyItem>();
-                return Either.Right(lastRelevantSet
+                var lastRelevantSet = E.Select((o, i) => (set: o, index: i))
+                    .LastOrDefault(o => o.set.Any(s => !s.LR0.IsFinished));
+                return Either.Right((lastRelevantSet.set ?? new())
                     .Where(i => !i.LR0.IsFinished)
-                    .Select(i => $"Expected {i.LR0.Current}")
+                    .Select(i => new SyntaxError<TT>(i.LR0.Current, lastRelevantSet.index < tokens.Count ? tokens[lastRelevantSet.index] : default))
                     .Distinct());
 
                 void CheckWordAndItem(Word word, int i, EarleyItem item, OrderedSet<EarleyItem> itemSet, HashSet<EarleyItem>? R, HashSet<EarleyItem> Q)

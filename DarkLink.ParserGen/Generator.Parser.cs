@@ -39,13 +39,13 @@ namespace DarkLink.ParserGen
                 parser = new(Grammar, callbacks);
             }}
 
-            public IEnumerable<T> Parse(string input)
+            public Either<T?, IEnumerable<SyntaxError<Terminals>>> Parse(string input)
                 => Parse(new StringReader(input));
 
-            public IEnumerable<T> Parse(Stream stream)
+            public Either<T?, IEnumerable<SyntaxError<Terminals>>> Parse(Stream stream)
                 => Parse(new StreamReader(stream));
 
-            public IEnumerable<T> Parse(TextReader reader)
+            public Either<T?, IEnumerable<SyntaxError<Terminals>>> Parse(TextReader reader)
             {{
                 var tokens = lexer.Lex(reader).ToList();
                 return parser.Parse(tokens);

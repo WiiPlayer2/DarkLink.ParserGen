@@ -68,7 +68,7 @@ namespace DarkLink.ParserGen
         public static readonly DiagnosticDescriptor SyntaxError = new(
             "PG08",
             "Syntax error",
-            "Expected {0}",
+            "Expected {0} but got \"{1}\" ({2})",
             "Parsing",
             DiagnosticSeverity.Error,
             true);
