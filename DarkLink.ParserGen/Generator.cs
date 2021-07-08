@@ -1,4 +1,5 @@
-﻿using DarkLink.ParserGen.Formats.Bnf;
+﻿using DarkLink.ParserGen.Formats;
+using DarkLink.ParserGen.Formats.Bnf;
 using DarkLink.ParserGen.Formats.Ebnf;
 using DarkLink.ParserGen.Formats.Simple;
 using DarkLink.ParserGen.Parsing;
@@ -16,6 +17,14 @@ namespace DarkLink.ParserGen
     [Generator]
     public partial class Generator : ISourceGenerator
     {
+        private static readonly IParser defaultParser = new SimpleParser();
+
+        private static readonly Dictionary<string, IParser> parsers = new Dictionary<string, IParser>(StringComparer.InvariantCultureIgnoreCase)
+        {
+            { ".bnf", new BnfParser() },
+            { ".ebnf", new EbnfParser() },
+        };
+
         private static readonly Encoding sourceEncoding = new UTF8Encoding(false);
 
         public void Execute(GeneratorExecutionContext context)
@@ -31,15 +40,13 @@ namespace DarkLink.ParserGen
             {
                 context.CancellationToken.ThrowIfCancellationRequested();
 
-                var secondExtension = Path.GetExtension(Path.GetFileNameWithoutExtension(additionalText.Path)).ToLowerInvariant();
+                var secondExtension = Path.GetExtension(Path.GetFileNameWithoutExtension(additionalText.Path));
                 var filename = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(additionalText.Path));
 
-                var config = secondExtension switch
-                {
-                    ".ebnf" => EbnfParser.Parse(context, additionalText, filename),
-                    ".bnf" => BnfParser.Parse(context, additionalText, filename),
-                    _ => SimpleParser.Parse(context, additionalText),
-                };
+                if (!parsers.TryGetValue(secondExtension, out var parser))
+                    parser = defaultParser;
+
+                var config = parser.Parse(context, additionalText, filename);
                 if (config is null)
                 {
                     context.ReportDiagnostic(Diagnostic.Create(Diagnostics.ParserFileInvalid, Location.Create(additionalText.Path, default, default), additionalText.Path));

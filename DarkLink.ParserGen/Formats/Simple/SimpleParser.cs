@@ -10,7 +10,7 @@ using System.Threading;
 
 namespace DarkLink.ParserGen.Formats.Simple
 {
-    internal static class SimpleParser
+    internal class SimpleParser : IParser
     {
         private static Regex kRegex = new(@"#k (?<k>\d+)");
 
@@ -24,7 +24,7 @@ namespace DarkLink.ParserGen.Formats.Simple
 
         private static Regex tokenRegex = new(@"(?<type>\w+)\s*=\s*(/(?<regex>[^/]+)/|""(?<literal>[^""]+)""|'(?<literal>[^']+)')");
 
-        public static Config? Parse(GeneratorExecutionContext context, AdditionalText additionalText)
+        public Config? Parse(GeneratorExecutionContext context, AdditionalText additionalText, string className)
         {
             var sourceText = additionalText.GetText(context.CancellationToken);
             if (sourceText is null)
@@ -133,9 +133,8 @@ namespace DarkLink.ParserGen.Formats.Simple
                 return null;
             }
 
-            var name = Path.GetFileNameWithoutExtension(additionalText.Path);
             return new(
-                new(@namespace, name, modifier ?? string.Empty),
+                new(@namespace, className, modifier ?? string.Empty),
                 new(tokens.Select(tuple => new TokenInfo(tuple.Type, tuple.Rule)).ToList()),
                 new(
                     rules.Select(o => G.NT(o.Name)).ToSet(),

@@ -9,7 +9,7 @@ using System.Text.RegularExpressions;
 
 namespace DarkLink.ParserGen.Formats.Bnf
 {
-    internal static class BnfParser
+    internal class BnfParser : GrammarParser<NTs, Ts, BnfNode, BnfConfig, BnfAstBuilder>
     {
         private const string NAMESPACE = "namespace";
 
@@ -17,10 +17,18 @@ namespace DarkLink.ParserGen.Formats.Bnf
 
         private static readonly Encoding encoding = new UTF8Encoding(false);
 
-        public static Config? Parse(GeneratorExecutionContext context, AdditionalText additionalText, string className)
+        public BnfParser() : base(NTs.Config)
         {
-            var astBuilder = new BnfAstBuilder();
-            var grammar = G.Create<NTs, Ts>(new HashSet<Production<NTs>>(astBuilder.Callbacks.Keys), NTs.Config);
+        }
+
+        protected override Config? CreateConfig(BnfConfig rootNode, string className)
+        {
+            var (parsedGrammar, literals) = CreateGrammar(rootNode);
+            return CreateConfig(rootNode.Meta, className, parsedGrammar, literals);
+        }
+
+        protected override Lexer<Ts> CreateLexer()
+        {
             var lexerRules = new Dictionary<Ts, Lexer<Ts>.Rule>()
             {
                 { Ts.LeftBracket, new Lexer<Ts>.LiteralRule("<") },
@@ -39,37 +47,7 @@ namespace DarkLink.ParserGen.Formats.Bnf
                 { Ts.Symbol, new Lexer<Ts>.RegexRule(new Regex(".")) },
             };
             var lexer = new Lexer<Ts>(lexerRules);
-            var parser = new Parser<BnfNode, NTs, Ts>(grammar, astBuilder.Callbacks);
-
-            var sourceText = additionalText.GetText(context.CancellationToken);
-            if (sourceText is null)
-            {
-                context.ReportDiagnostic(Diagnostic.Create(Diagnostics.FailedToOpenFile, Location.Create(additionalText.Path, default, default), additionalText.Path));
-                return null;
-            }
-
-            var tokens = lexer.Lex(sourceText.ToString()).ToList();
-            var result = parser.Parse(tokens);
-            return result.Match(syntax =>
-            {
-                if (syntax is null)
-                {
-                    context.ReportDiagnostic(Diagnostic.Create(Diagnostics.FailedToParse, Location.Create(additionalText.Path, default, default), additionalText.Path));
-                    return null;
-                }
-
-                var config = (BnfConfig)syntax;
-                var (parsedGrammar, literals) = CreateGrammar(config);
-                return CreateConfig(config.Meta, className, parsedGrammar, literals);
-            },
-            errors =>
-            {
-                foreach (var error in errors)
-                {
-                    context.ReportDiagnostic(Diagnostic.Create(Diagnostics.SyntaxError, Location.Create(additionalText.Path, default, default), error));
-                }
-                return null;
-            });
+            return lexer;
         }
 
         private static Config CreateConfig(BnfMeta meta, string className, Grammar<string, string> grammar, Dictionary<string, TokenRule> literalRules)

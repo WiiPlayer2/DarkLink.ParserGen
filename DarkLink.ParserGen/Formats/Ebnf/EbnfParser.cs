@@ -9,22 +9,33 @@ using System.Text.RegularExpressions;
 
 namespace DarkLink.ParserGen.Formats.Ebnf
 {
-    internal static class EbnfParser
+    internal class EbnfParser : GrammarParser<NTs, Ts, EbnfNode, EbnfConfig, EbnfAstBuilder>
     {
         private const string NAMESPACE = "namespace";
 
         private const string START = "start";
 
-        private static Encoding encoding = new UTF8Encoding(false);
+        private static readonly Encoding encoding = new UTF8Encoding(false);
 
         internal record UnrolledAnd(List<EbnfExpression> Expressions);
 
         internal record UnrolledOr(List<EbnfExpression> Expressions);
 
-        public static Config? Parse(GeneratorExecutionContext context, AdditionalText additionalText, string className)
+        public EbnfParser() : base(NTs.Config)
         {
-            var astBuilder = new EbnfAstBuilder();
-            var grammar = G.Create<NTs, Ts>(new HashSet<Production<NTs>>(astBuilder.Callbacks.Keys), NTs.Config);
+        }
+
+        protected override Config? CreateConfig(EbnfConfig rootNode, string className)
+        {
+            var config = Cleanup(rootNode);
+
+            var literalRules = new Dictionary<TerminalSymbol<string>, TokenRule>();
+            var parsedGrammar = CreateGrammar(config, literalRules);
+            return CreateConfig(config.Meta.Entries, className, parsedGrammar, literalRules);
+        }
+
+        protected override Lexer<Ts> CreateLexer()
+        {
             var lexerRules = new Dictionary<Ts, Lexer<Ts>.Rule>()
             {
                 { Ts.Sharp, new Lexer<Ts>.LiteralRule("#") },
@@ -48,39 +59,7 @@ namespace DarkLink.ParserGen.Formats.Ebnf
                 { Ts.Symbol, new Lexer<Ts>.RegexRule(new Regex(@"[<>\.\-/]")) },
             };
             var lexer = new Lexer<Ts>(lexerRules);
-            var parser = new Parser<EbnfNode, NTs, Ts>(grammar, astBuilder.Callbacks);
-
-            var sourceText = additionalText.GetText(context.CancellationToken);
-            if (sourceText is null)
-            {
-                context.ReportDiagnostic(Diagnostic.Create(Diagnostics.FailedToOpenFile, Location.Create(additionalText.Path, default, default), additionalText.Path));
-                return null;
-            }
-
-            var tokens = lexer.Lex(sourceText.ToString()).ToList();
-            var result = parser.Parse(tokens);
-            return result.Match(syntax =>
-            {
-                if (syntax is null)
-                {
-                    context.ReportDiagnostic(Diagnostic.Create(Diagnostics.FailedToParse, Location.Create(additionalText.Path, default, default), additionalText.Path));
-                    return null;
-                }
-
-                var config = (EbnfConfig)syntax;
-                config = Cleanup(config);
-
-                var literalRules = new Dictionary<TerminalSymbol<string>, TokenRule>();
-                var parsedGrammar = CreateGrammar(config, literalRules);
-                return CreateConfig(config.Meta.Entries, className, parsedGrammar, literalRules);
-            }, errors =>
-            {
-                foreach (var error in errors)
-                {
-                    context.ReportDiagnostic(Diagnostic.Create(Diagnostics.SyntaxError, Location.Create(additionalText.Path, default, default), error));
-                }
-                return null;
-            });
+            return lexer;
         }
 
         private static EbnfConfig Cleanup(EbnfConfig config)
