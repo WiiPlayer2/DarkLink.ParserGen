@@ -200,8 +200,7 @@ namespace DarkLink.ParserGen.Formats.Ebnf
                         var newNonTerminal = GetNewDerivedSymbol(left, derivedSymbols);
                         var nullProduction = G.P(rule.Left);
                         var multiProduction = G.P(rule.Left, newNonTerminal, left);
-                        var forwardProduction = G.P(rule.Left, newNonTerminal);
-                        return new[] { nullProduction, multiProduction, forwardProduction }.Concat(CreateProduction(new EbnfRule(newNonTerminal.Value, repeat.Expression), derivedSymbols, literalRules));
+                        return new[] { nullProduction, multiProduction }.Concat(CreateProduction(new EbnfRule(newNonTerminal.Value, repeat.Expression), derivedSymbols, literalRules));
                     }
 
                 default:
