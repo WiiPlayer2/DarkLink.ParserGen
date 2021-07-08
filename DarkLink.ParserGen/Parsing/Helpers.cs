@@ -8,6 +8,105 @@ using System.Text;
 
 namespace DarkLink.ParserGen.Parsing
 {
+    internal struct Either<TLeft, TRight>
+    {
+        private readonly bool isLeft;
+
+        private readonly bool isRight;
+
+        private readonly TLeft leftValue;
+
+        private readonly TRight rightValue;
+
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
+
+        public Either(TLeft leftValue)
+        {
+            isLeft = true;
+            isRight = false;
+            this.leftValue = leftValue;
+#pragma warning disable CS8601 // Possible null reference assignment.
+            rightValue = default;
+#pragma warning restore CS8601 // Possible null reference assignment.
+        }
+
+        public Either(TRight rightValue)
+        {
+            isLeft = false;
+            isRight = true;
+            this.rightValue = rightValue;
+#pragma warning disable CS8601 // Possible null reference assignment.
+            leftValue = default;
+#pragma warning restore CS8601 // Possible null reference assignment.
+        }
+
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
+
+        public static implicit operator Either<TLeft, TRight>(TLeft value)
+            => new Either<TLeft, TRight>(value);
+
+        public static implicit operator Either<TLeft, TRight>(TRight value)
+            => new Either<TLeft, TRight>(value);
+
+        public static implicit operator Either<TLeft, TRight>(EitherLeft<TLeft> eitherLeft)
+            => new Either<TLeft, TRight>(eitherLeft.Value);
+
+        public static implicit operator Either<TLeft, TRight>(EitherRight<TRight> eitherRight)
+            => new Either<TLeft, TRight>(eitherRight.Value);
+
+        public Either<TLeftResult, TRightResult> Map<TLeftResult, TRightResult>(Func<TLeft, TLeftResult> mapLeft, Func<TRight, TRightResult> mapRight)
+            => Match<Either<TLeftResult, TRightResult>>(left => mapLeft(left), right => mapRight(right));
+
+        public Either<TLeftResult, TRight> MapLeft<TLeftResult>(Func<TLeft, TLeftResult> mapLeft)
+            => Map(mapLeft, _ => _);
+
+        public Either<TLeft, TRightResult> MapRight<TRightResult>(Func<TRight, TRightResult> mapRight)
+            => Map(_ => _, mapRight);
+
+        public TResult Match<TResult>(Func<TLeft, TResult> onLeft, Func<TRight, TResult> onRight, Func<TResult>? onBottom = default)
+        {
+            if (!isLeft && !isRight)
+                return onBottom is null
+                    ? throw new InvalidOperationException()
+                    : onBottom();
+            if (isLeft)
+                return onLeft(leftValue);
+            if (isRight)
+                return onRight(rightValue);
+
+            throw new InvalidOperationException();
+        }
+    }
+
+    internal struct Either
+    {
+        public static EitherLeft<T> Left<T>(T value)
+            => new EitherLeft<T>(value);
+
+        public static EitherRight<T> Right<T>(T value)
+            => new EitherRight<T>(value);
+    }
+
+    internal struct EitherLeft<T>
+    {
+        public EitherLeft(T value)
+        {
+            Value = value;
+        }
+
+        public T Value { get; }
+    }
+
+    internal struct EitherRight<T>
+    {
+        public EitherRight(T value)
+        {
+            Value = value;
+        }
+
+        public T Value { get; }
+    }
+
     internal struct Option
     {
         public static OptionNone None { get; }

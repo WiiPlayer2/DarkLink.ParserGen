@@ -16,7 +16,7 @@ namespace DarkLink.ParserGen.Parsing
                 this.grammar = grammar;
             }
 
-            public Node? Parse(IReadOnlyList<Token<TT>> tokens)
+            public Either<Node, IEnumerable<string>> Parse(IReadOnlyList<Token<TT>> tokens)
             {
                 var n = tokens.Count;
                 var E = Enumerable.Repeat(0, tokens.Count + 1)
@@ -126,7 +126,15 @@ namespace DarkLink.ParserGen.Parsing
                     .Select(i => i.Node)
                     .WhereNotNull()
                     .FirstOrDefault();
-                return node;
+
+                if (node is not null)
+                    return node;
+
+                var lastRelevantSet = E.LastOrDefault(o => o.Any(s => !s.LR0.IsFinished)) ?? new OrderedSet<EarleyItem>();
+                return Either.Right(lastRelevantSet
+                    .Where(i => !i.LR0.IsFinished)
+                    .Select(i => $"Expected {i.LR0.Current}")
+                    .Distinct());
 
                 void CheckWordAndItem(Word word, int i, EarleyItem item, OrderedSet<EarleyItem> itemSet, HashSet<EarleyItem>? R, HashSet<EarleyItem> Q)
                 {

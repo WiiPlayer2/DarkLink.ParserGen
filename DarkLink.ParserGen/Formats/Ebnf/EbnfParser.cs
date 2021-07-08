@@ -58,19 +58,29 @@ namespace DarkLink.ParserGen.Formats.Ebnf
             }
 
             var tokens = lexer.Lex(sourceText.ToString()).ToList();
-            var syntax = parser.Parse(tokens);
-            if (syntax is null)
+            var result = parser.Parse(tokens);
+            return result.Match(syntax =>
             {
-                context.ReportDiagnostic(Diagnostic.Create(Diagnostics.FailedToParse, Location.Create(additionalText.Path, default, default), additionalText.Path));
+                if (syntax is null)
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(Diagnostics.FailedToParse, Location.Create(additionalText.Path, default, default), additionalText.Path));
+                    return null;
+                }
+
+                var config = (EbnfConfig)syntax;
+                config = Cleanup(config);
+
+                var literalRules = new Dictionary<TerminalSymbol<string>, TokenRule>();
+                var parsedGrammar = CreateGrammar(config, literalRules);
+                return CreateConfig(config.Meta.Entries, className, parsedGrammar, literalRules);
+            }, errors =>
+            {
+                foreach (var error in errors)
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(Diagnostics.SyntaxError, Location.Create(additionalText.Path, default, default), error));
+                }
                 return null;
-            }
-
-            var config = (EbnfConfig)syntax;
-            config = Cleanup(config);
-
-            var literalRules = new Dictionary<TerminalSymbol<string>, TokenRule>();
-            var parsedGrammar = CreateGrammar(config, literalRules);
-            return CreateConfig(config.Meta.Entries, className, parsedGrammar, literalRules);
+            });
         }
 
         private static EbnfConfig Cleanup(EbnfConfig config)

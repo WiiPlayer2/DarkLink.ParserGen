@@ -57,10 +57,18 @@ namespace DarkLink.ParserGen
             DiagnosticSeverity.Error,
             true);
 
-        public static DiagnosticDescriptor ParserFileInvalid = new(
+        public static readonly DiagnosticDescriptor ParserFileInvalid = new(
             "PG07",
             "Parser file is invalid",
             "Parser file {0} is invalid",
+            "Parsing",
+            DiagnosticSeverity.Error,
+            true);
+
+        public static readonly DiagnosticDescriptor SyntaxError = new(
+            "PG08",
+            "Syntax error",
+            "Expected {0}",
             "Parsing",
             DiagnosticSeverity.Error,
             true);
