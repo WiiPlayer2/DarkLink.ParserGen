@@ -17,10 +17,12 @@ namespace DarkLink.ParserGen.Parsing
             forestToParseTree = new(callbacks);
         }
 
-        public IEnumerable<T> Parse(IReadOnlyList<Token<TT>> tokens)
+        public T? Parse(IReadOnlyList<Token<TT>> tokens)
         {
-            var solutions = parser.Parse(tokens);
-            return solutions.SelectMany(node => forestToParseTree.Transform(node));
+            var solution = parser.Parse(tokens);
+            return solution is null
+                ? default
+                : forestToParseTree.Transform(solution).GetValueOrDefault();
         }
     }
 }

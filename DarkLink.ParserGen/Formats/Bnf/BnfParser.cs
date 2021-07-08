@@ -49,14 +49,14 @@ namespace DarkLink.ParserGen.Formats.Bnf
             }
 
             var tokens = lexer.Lex(sourceText.ToString()).ToList();
-            var syntax = parser.Parse(tokens).ToList();
-            if (syntax.IsEmpty())
+            var syntax = parser.Parse(tokens);
+            if (syntax is null)
             {
                 context.ReportDiagnostic(Diagnostic.Create(Diagnostics.FailedToParse, Location.Create(additionalText.Path, default, default), additionalText.Path));
                 return null;
             }
 
-            var config = (BnfConfig)syntax.First();
+            var config = (BnfConfig)syntax;
             var (parsedGrammar, literals) = CreateGrammar(config);
             return CreateConfig(config.Meta, className, parsedGrammar, literals);
         }

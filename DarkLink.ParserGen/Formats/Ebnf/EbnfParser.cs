@@ -58,14 +58,14 @@ namespace DarkLink.ParserGen.Formats.Ebnf
             }
 
             var tokens = lexer.Lex(sourceText.ToString()).ToList();
-            var syntax = parser.Parse(tokens).ToList();
-            if (syntax.IsEmpty())
+            var syntax = parser.Parse(tokens);
+            if (syntax is null)
             {
                 context.ReportDiagnostic(Diagnostic.Create(Diagnostics.FailedToParse, Location.Create(additionalText.Path, default, default), additionalText.Path));
                 return null;
             }
 
-            var config = (EbnfConfig)syntax.First();
+            var config = (EbnfConfig)syntax;
             config = Cleanup(config);
 
             var literalRules = new Dictionary<TerminalSymbol<string>, TokenRule>();

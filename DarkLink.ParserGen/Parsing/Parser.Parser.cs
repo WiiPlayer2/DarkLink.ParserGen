@@ -16,7 +16,7 @@ namespace DarkLink.ParserGen.Parsing
                 this.grammar = grammar;
             }
 
-            public IReadOnlyList<Node> Parse(IReadOnlyList<Token<TT>> tokens)
+            public Node? Parse(IReadOnlyList<Token<TT>> tokens)
             {
                 var n = tokens.Count;
                 var E = Enumerable.Repeat(0, tokens.Count + 1)
@@ -121,12 +121,12 @@ namespace DarkLink.ParserGen.Parsing
                 }
 
                 var lastSet = E.Last();
-                var completedNodes = lastSet
+                var node = lastSet
                     .Where(i => i.LR0.IsFinished && i.LR0.Production.Left == grammar.Start && i.Start == 0)
                     .Select(i => i.Node)
                     .WhereNotNull()
-                    .ToList();
-                return completedNodes;
+                    .FirstOrDefault();
+                return node;
 
                 void CheckWordAndItem(Word word, int i, EarleyItem item, OrderedSet<EarleyItem> itemSet, HashSet<EarleyItem>? R, HashSet<EarleyItem> Q)
                 {

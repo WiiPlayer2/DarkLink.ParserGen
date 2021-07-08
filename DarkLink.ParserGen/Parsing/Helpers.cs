@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -142,6 +143,7 @@ namespace DarkLink.ParserGen.Parsing
         protected Func<object[], T> SELECT(int index) => args => (T)args[index];
     }
 
+    [DebuggerDisplay("Count = {Count,nq}")]
     internal class OrderedSet<T> : ICollection<T>
     {
         private readonly List<T> list = new();
