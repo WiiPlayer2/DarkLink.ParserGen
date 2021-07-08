@@ -144,7 +144,7 @@ namespace DarkLink.ParserGen
                     switch (type)
                     {
                         case ProductionType.Empty:
-                            WriteEmptyNode(production.Left, suffix, baseClass);
+                            WriteEmptyNode(production, suffix, baseClass);
                             break;
 
                         case ProductionType.OnlyTerminals:
@@ -157,10 +157,21 @@ namespace DarkLink.ParserGen
                     }
                 }
 
-                void WriteEmptyNode(NonTerminalSymbol<string> symbol, string suffix, string baseClass)
+                void WriteEmptyNode(Production<string> production, string suffix, string baseClass)
                 {
+                    var symbol = production.Left;
+                    var symbolType = GetSymbolType(symbol, symbolProductions);
+                    var doc = symbolType switch
+                    {
+                        var x when
+                            x == SymbolType.Single ||
+                            x == SymbolType.OnlyTerminals => $"A node representing the symbol {symbol}.",
+                        SymbolType.Multiple => $"A node representing the production {production}.",
+                        _ => throw new NotImplementedException(),
+                    };
+
                     writer.WriteLine($@"
-            ///<summary>A node representing the symbol {symbol}.</summary>
+            ///<summary>{doc}</summary>
             public record {symbol.Value}{suffix}Node() : {baseClass}
             {{
                 public override string ToString() => string.Empty;
