@@ -24,7 +24,6 @@ namespace DarkLink.ParserGen.Parsing
                     .ToArray();
                 var Q_ = new HashSet<EarleyItem>();
                 var V = new Dictionary<NodeLabel, BranchNode>();
-                BranchNode? v;
 
                 foreach (var production in grammar.Productions.Where(p => p.Left == grammar.Start))
                 {
@@ -41,22 +40,19 @@ namespace DarkLink.ParserGen.Parsing
                     while (!R.IsEmpty())
                     {
                         var A = R.Remove();
-                        var h = A.Start;
-                        var w = A.Node;
 
                         if (!A.LR0.IsFinished)
                         {
-                            v = Predict(E, V, i, H, R, Q, A, h, w);
+                            Predict(i, H, R, Q, A);
                         }
                         else
                         {
-                            v = null;
-                            Complete(E, V, ref v, i, H, R, Q, A, h, ref w);
+                            Complete(i, H, R, Q, A);
                         }
                     }
 
                     V.Clear();
-                    Scan(tokens, E, Q_, V, i, Q);
+                    Scan(i, Q);
                 }
 
                 var lastSet = E.Last();
@@ -90,9 +86,12 @@ namespace DarkLink.ParserGen.Parsing
                     }
                 }
 
-                BranchNode Predict(OrderedSet<EarleyItem>[] E, Dictionary<NodeLabel, BranchNode> V, int i, Dictionary<Symbol, BranchNode> H, HashSet<EarleyItem> R, HashSet<EarleyItem> Q, EarleyItem A, int h, SymbolNode? w)
+                void Predict(int i, Dictionary<Symbol, BranchNode> H, HashSet<EarleyItem> R, HashSet<EarleyItem> Q, EarleyItem A)
                 {
-                    Parser<T, TNT, TT>.BranchNode? v;
+                    BranchNode? v;
+                    var h = A.Start;
+                    var w = A.Node;
+
                     foreach (var production in grammar.Productions.Where(p => p.Left == A.LR0.Current))
                     {
                         var item = new EarleyItem(new(production, 0), i, null);
@@ -107,12 +106,14 @@ namespace DarkLink.ParserGen.Parsing
                         var item = new EarleyItem(lr0, h, y);
                         CheckWordAndItem(beta, i, item, E[i], R, Q);
                     }
-
-                    return v;
                 }
 
-                void Complete(OrderedSet<EarleyItem>[] E, Dictionary<NodeLabel, BranchNode> V, ref BranchNode? v, int i, Dictionary<Symbol, BranchNode> H, HashSet<EarleyItem> R, HashSet<EarleyItem> Q, EarleyItem A, int h, ref SymbolNode? w)
+                void Complete(int i, Dictionary<Symbol, BranchNode> H, HashSet<EarleyItem> R, HashSet<EarleyItem> Q, EarleyItem A)
                 {
+                    BranchNode? v;
+                    var h = A.Start;
+                    var w = A.Node;
+
                     if (w is null)
                     {
                         var label = new NonTerminalNodeLabel(A.LR0.Production.Left, i, i);
@@ -150,7 +151,7 @@ namespace DarkLink.ParserGen.Parsing
                     }
                 }
 
-                void Scan(IReadOnlyList<Token<TT>> tokens, OrderedSet<EarleyItem>[] E, HashSet<EarleyItem> Q_, Dictionary<NodeLabel, BranchNode> V, int i, HashSet<EarleyItem> Q)
+                void Scan(int i, HashSet<EarleyItem> Q)
                 {
                     var token = tokens.Count > i ? tokens[i] : null;
                     var vLabel = new TerminalNodeLabel(token, i, i + 1);
