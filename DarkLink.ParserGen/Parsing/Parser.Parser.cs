@@ -46,78 +46,17 @@ namespace DarkLink.ParserGen.Parsing
 
                         if (!A.LR0.IsFinished)
                         {
-                            foreach (var production in grammar.Productions.Where(p => p.Left == A.LR0.Current))
-                            {
-                                var item = new EarleyItem(new(production, 0), i, null);
-                                CheckWordAndItem(production.Right, i, item, E[i], R, Q);
-                            }
-
-                            if (H.TryGetValue(A.LR0.Current, out v))
-                            {
-                                var lr0 = A.LR0.Step();
-                                var y = (BranchNode)MakeNode(lr0, h, i, w, v, V);
-                                var beta = lr0.Production.Right.Symbols.Skip(lr0.Position).ToArray();
-                                var item = new EarleyItem(lr0, h, y);
-                                CheckWordAndItem(beta, i, item, E[i], R, Q);
-                            }
+                            v = Predict(E, V, i, H, R, Q, A, h, w);
                         }
                         else
                         {
-                            if (w is null)
-                            {
-                                var label = new NonTerminalNodeLabel(A.LR0.Production.Left, i, i);
-                                if (!V.TryGetValue(label, out v))
-                                {
-                                    v = new NonTerminalNode(label);
-                                    V[label] = v;
-                                }
-
-                                var w2 = v;
-
-                                var packNode = new PackNode(w2, A.LR0.Production, null, null);
-                                if (!w2.Children.Contains(packNode))
-                                {
-                                    w2.Children.Add(packNode);
-                                }
-
-                                w = v;
-                            }
-
-                            if (h == i && H.Contains(new(A.LR0.Production.Left, (BranchNode)w)))
-                            {
-                                H.Add(A.LR0.Production.Left, (BranchNode)w);
-                            }
-
-                            foreach (var item in E[h])
-                            {
-                                if (!(!item.LR0.IsFinished && item.LR0.Current == A.LR0.Production.Left))
-                                    continue;
-
-                                var y = (BranchNode)MakeNode(item.LR0.Step(), item.Start, i, item.Node, w, V);
-                                var delta = item.LR0.Production.Right.Symbols.Skip(item.LR0.Position + 1).ToArray();
-                                var newItem = new EarleyItem(item.LR0.Step(), item.Start, y);
-                                CheckWordAndItem(delta, i, newItem, E[i], R, Q);
-                            }
+                            v = null;
+                            Complete(E, V, ref v, i, H, R, Q, A, h, ref w);
                         }
                     }
 
                     V.Clear();
-                    var token = tokens.Count > i ? tokens[i] : null;
-                    var vLabel = new TerminalNodeLabel(token, i, i + 1);
-                    var v2 = new TerminalNode(vLabel);
-
-                    while (!Q.IsEmpty())
-                    {
-                        var A = Q.Remove(item => item.LR0.Current == tokens[i].Symbol);
-                        var h = A.Start;
-                        var w = A.Node;
-
-                        var y = MakeNode(A.LR0.Step(), h, i + 1, w, v2, V);
-
-                        var beta = A.LR0.Production.Right.Symbols.Skip(A.LR0.Position + 1).ToArray();
-
-                        CheckWordAndItem(beta, i + 1, new(A.LR0.Step(), h, y), E[i + 1], null, Q_);
-                    }
+                    Scan(tokens, E, Q_, V, i, Q);
                 }
 
                 var lastSet = E.Last();
@@ -148,6 +87,86 @@ namespace DarkLink.ParserGen.Parsing
                     if (word.Length > 0 && tokens.Count > i && word[0] == tokens[i].Symbol)
                     {
                         Q.Add(item);
+                    }
+                }
+
+                BranchNode Predict(OrderedSet<EarleyItem>[] E, Dictionary<NodeLabel, BranchNode> V, int i, Dictionary<Symbol, BranchNode> H, HashSet<EarleyItem> R, HashSet<EarleyItem> Q, EarleyItem A, int h, SymbolNode? w)
+                {
+                    Parser<T, TNT, TT>.BranchNode? v;
+                    foreach (var production in grammar.Productions.Where(p => p.Left == A.LR0.Current))
+                    {
+                        var item = new EarleyItem(new(production, 0), i, null);
+                        CheckWordAndItem(production.Right, i, item, E[i], R, Q);
+                    }
+
+                    if (H.TryGetValue(A.LR0.Current, out v))
+                    {
+                        var lr0 = A.LR0.Step();
+                        var y = (BranchNode)MakeNode(lr0, h, i, w, v, V);
+                        var beta = lr0.Production.Right.Symbols.Skip(lr0.Position).ToArray();
+                        var item = new EarleyItem(lr0, h, y);
+                        CheckWordAndItem(beta, i, item, E[i], R, Q);
+                    }
+
+                    return v;
+                }
+
+                void Complete(OrderedSet<EarleyItem>[] E, Dictionary<NodeLabel, BranchNode> V, ref BranchNode? v, int i, Dictionary<Symbol, BranchNode> H, HashSet<EarleyItem> R, HashSet<EarleyItem> Q, EarleyItem A, int h, ref SymbolNode? w)
+                {
+                    if (w is null)
+                    {
+                        var label = new NonTerminalNodeLabel(A.LR0.Production.Left, i, i);
+                        if (!V.TryGetValue(label, out v))
+                        {
+                            v = new NonTerminalNode(label);
+                            V[label] = v;
+                        }
+
+                        var w2 = v;
+
+                        var packNode = new PackNode(w2, A.LR0.Production, null, null);
+                        if (!w2.Children.Contains(packNode))
+                        {
+                            w2.Children.Add(packNode);
+                        }
+
+                        w = v;
+                    }
+
+                    if (h == i && H.Contains(new(A.LR0.Production.Left, (BranchNode)w)))
+                    {
+                        H.Add(A.LR0.Production.Left, (BranchNode)w);
+                    }
+
+                    foreach (var item in E[h])
+                    {
+                        if (!(!item.LR0.IsFinished && item.LR0.Current == A.LR0.Production.Left))
+                            continue;
+
+                        var y = (BranchNode)MakeNode(item.LR0.Step(), item.Start, i, item.Node, w, V);
+                        var delta = item.LR0.Production.Right.Symbols.Skip(item.LR0.Position + 1).ToArray();
+                        var newItem = new EarleyItem(item.LR0.Step(), item.Start, y);
+                        CheckWordAndItem(delta, i, newItem, E[i], R, Q);
+                    }
+                }
+
+                void Scan(IReadOnlyList<Token<TT>> tokens, OrderedSet<EarleyItem>[] E, HashSet<EarleyItem> Q_, Dictionary<NodeLabel, BranchNode> V, int i, HashSet<EarleyItem> Q)
+                {
+                    var token = tokens.Count > i ? tokens[i] : null;
+                    var vLabel = new TerminalNodeLabel(token, i, i + 1);
+                    var v2 = new TerminalNode(vLabel);
+
+                    while (!Q.IsEmpty())
+                    {
+                        var A = Q.Remove(item => item.LR0.Current == tokens[i].Symbol);
+                        var h = A.Start;
+                        var w = A.Node;
+
+                        var y = MakeNode(A.LR0.Step(), h, i + 1, w, v2, V);
+
+                        var beta = A.LR0.Production.Right.Symbols.Skip(A.LR0.Position + 1).ToArray();
+
+                        CheckWordAndItem(beta, i + 1, new(A.LR0.Step(), h, y), E[i + 1], null, Q_);
                     }
                 }
             }
