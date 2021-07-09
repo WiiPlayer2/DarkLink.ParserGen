@@ -133,11 +133,8 @@ namespace DarkLink.ParserGen.Parsing
                         H.Add(item.LR0.Production.Left, (BranchNode)itemNode);
                     }
 
-                    foreach (var otherItem in itemSets[item.Start])
+                    foreach (var otherItem in itemSets[item.Start].Where(o => (!o.LR0.IsFinished && o.LR0.Current == item.LR0.Production.Left)))
                     {
-                        if (!(!otherItem.LR0.IsFinished && otherItem.LR0.Current == item.LR0.Production.Left))
-                            continue;
-
                         var y = (BranchNode)MakeNode(otherItem.LR0.Step(), otherItem.Start, i, otherItem.Node, itemNode, nodeCache);
                         var delta = otherItem.LR0.Production.Right.Symbols.Skip(otherItem.LR0.Position + 1).ToArray();
                         var newItem = new EarleyItem(otherItem.LR0.Step(), otherItem.Start, y);
