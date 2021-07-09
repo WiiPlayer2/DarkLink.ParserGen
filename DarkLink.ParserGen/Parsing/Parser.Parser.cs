@@ -156,21 +156,27 @@ namespace DarkLink.ParserGen.Parsing
 
             private SymbolNode MakeNode(LR0Item lr0, int j, int i, SymbolNode? w, SymbolNode v, Dictionary<NodeLabel, BranchNode> V)
             {
-                if (lr0.Position == 1 && !lr0.IsFinished)
+                var alpha = (Word)lr0.Production.Right.Symbols.Take(lr0.Position - 1).ToArray();
+                var beta = (Word)lr0.Production.Right.Symbols.Skip(lr0.Position).ToArray();
+
+                if (alpha.IsEmpty && !beta.IsEmpty)
                 {
                     return v;
                 }
                 else
                 {
-                    var label = lr0.IsFinished
+                    var label = beta.IsEmpty
                         ? (NodeLabel)new NonTerminalNodeLabel(lr0.Production.Left, j, i)
                         : new IntermediateNodeLabel(lr0, j, i);
 
                     if (!V.TryGetValue(label, out var y))
                     {
-                        y = label is NonTerminalNodeLabel nonTerminalNodeLabel
-                            ? new NonTerminalNode(nonTerminalNodeLabel)
-                            : new IntermediateNode((IntermediateNodeLabel)label);
+                        y = label switch
+                        {
+                            NonTerminalNodeLabel nonTerminalNodeLabel => new NonTerminalNode(nonTerminalNodeLabel),
+                            IntermediateNodeLabel intermediateNodeLabel => new IntermediateNode(intermediateNodeLabel),
+                            _ => throw new NotImplementedException(),
+                        };
                         V[label] = y;
                     }
 
