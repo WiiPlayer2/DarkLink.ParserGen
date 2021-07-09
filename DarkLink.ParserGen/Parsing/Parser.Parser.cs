@@ -24,6 +24,7 @@ namespace DarkLink.ParserGen.Parsing
                     .ToArray();
                 var Q_ = new HashSet<EarleyItem>();
                 var nodeCache = new Dictionary<NodeLabel, BranchNode>();
+                var syntaxErrors = new List<(int Index, SyntaxError<TT> Error)>();
 
                 foreach (var production in grammar.Productions.Where(p => p.Left == grammar.Start))
                 {
@@ -65,24 +66,31 @@ namespace DarkLink.ParserGen.Parsing
                 if (node is not null)
                     return node;
 
-                var lastRelevantSet = itemSets.Select((o, i) => (set: o, index: i))
-                    .LastOrDefault(o => o.set.Any(s => !s.LR0.IsFinished));
-                return Either.Right((lastRelevantSet.set ?? new())
-                    .Where(i => !i.LR0.IsFinished)
-                    .Select(i => new SyntaxError<TT>(i.LR0.Current, lastRelevantSet.index < tokens.Count ? tokens[lastRelevantSet.index] : default))
-                    .Distinct());
+                var lastRelevantErrors = syntaxErrors
+                    .Distinct()
+                    .ToLookup(o => o.Index)
+                    .Last(o => itemSets[o.Key].Any())
+                    .Select(o => o.Error);
+                return Either.Right(lastRelevantErrors.ToList().AsEnumerable());
 
                 void CheckWordAndItem(Word word, int i, EarleyItem item, OrderedSet<EarleyItem> itemSet, HashSet<EarleyItem>? R, HashSet<EarleyItem> Q)
                 {
-                    if (IsInSigmaIndexN(word) && (R is null || !itemSet.Contains(item)))
+                    if (IsInSigmaIndexN(word))
                     {
-                        itemSet.Add(item);
-                        if (R is not null)
-                            R.Add(item);
+                        if ((R is null || !itemSet.Contains(item)))
+                        {
+                            itemSet.Add(item);
+                            if (R is not null)
+                                R.Add(item);
+                        }
                     }
-                    if (word.Length > 0 && tokens.Count > i && word[0] == tokens[i].Symbol)
+                    else if (word.Length > 0 && tokens.Count > i && word[0] == tokens[i].Symbol)
                     {
                         Q.Add(item);
+                    }
+                    else if (word.Length > 0 && R is not null)
+                    {
+                        syntaxErrors.Add((i, new(word[0], i < inputLength ? tokens[i] : default)));
                     }
                 }
 
