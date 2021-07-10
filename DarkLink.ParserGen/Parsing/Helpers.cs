@@ -78,6 +78,25 @@ namespace DarkLink.ParserGen.Parsing
 
             throw new InvalidOperationException();
         }
+
+        public void Match(Action<TLeft> onLeft, Action<TRight> onRight, Action? onBottom = default)
+        {
+            if (isLeft)
+            {
+                onLeft(leftValue);
+            }
+            else if (isRight)
+            {
+                onRight(rightValue);
+            }
+            else
+            {
+                if (onBottom is null)
+                    throw new InvalidOperationException();
+                else
+                    onBottom();
+            }
+        }
     }
 
     internal struct Either
