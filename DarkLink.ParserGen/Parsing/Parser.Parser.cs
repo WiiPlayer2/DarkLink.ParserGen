@@ -7,6 +7,9 @@ namespace DarkLink.ParserGen.Parsing
 {
     partial class Parser<T, TNT, TT>
     {
+        // Adapted from SPPF-Style Parsing From Earley Recognisers
+        // by Elizabeth Scott
+        // https://www.sciencedirect.com/science/article/pii/S1571066108001497
         private class EarleyParser
         {
             private readonly Grammar<TNT, TT> grammar;
