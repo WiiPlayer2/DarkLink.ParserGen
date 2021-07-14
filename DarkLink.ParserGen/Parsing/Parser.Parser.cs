@@ -136,7 +136,7 @@ namespace DarkLink.ParserGen.Parsing
                         itemNode = v;
                     }
 
-                    if (item.Start == i && H.Contains(new(item.LR0.Production.Left, (BranchNode)itemNode)))
+                    if (item.Start == i && !H.Contains(new(item.LR0.Production.Left, (BranchNode)itemNode))) // checking H may be unnecessary
                     {
                         H.Add(item.LR0.Production.Left, (BranchNode)itemNode);
                     }
