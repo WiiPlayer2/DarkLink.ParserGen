@@ -219,14 +219,14 @@ namespace DarkLink.ParserGen
             private static Either<{startClass}?, IEnumerable<SyntaxError<Terminals>>> Parse(Func<Parser<Node>, Either<Node?, IEnumerable<SyntaxError<Terminals>>>> parse)
                 => parse(new Parser<Node>(new CstBuilder().Callbacks)).MapLeft(left => ({startClass}?)left);
 
-            public static Either<{startClass}?, IEnumerable<SyntaxError<Terminals>>> Parse(string input)
-                => Parse(p => p.Parse(input));
+            public static Either<{startClass}?, IEnumerable<SyntaxError<Terminals>>> Parse(string input, CancellationToken cancellationToken = default)
+                => Parse(p => p.Parse(input, cancellationToken));
 
-            public static Either<{startClass}?, IEnumerable<SyntaxError<Terminals>>> Parse(Stream stream)
-                => Parse(p => p.Parse(stream));
+            public static Either<{startClass}?, IEnumerable<SyntaxError<Terminals>>> Parse(Stream stream, CancellationToken cancellationToken = default)
+                => Parse(p => p.Parse(stream, cancellationToken));
 
-            public static Either<{startClass}?, IEnumerable<SyntaxError<Terminals>>> Parse(TextReader reader)
-                => Parse(p => p.Parse(reader));
+            public static Either<{startClass}?, IEnumerable<SyntaxError<Terminals>>> Parse(TextReader reader, CancellationToken cancellationToken = default)
+                => Parse(p => p.Parse(reader, cancellationToken));
 ");
         }
 

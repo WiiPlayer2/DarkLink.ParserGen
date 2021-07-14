@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 
 namespace DarkLink.ParserGen.Parsing
 {
@@ -17,8 +18,8 @@ namespace DarkLink.ParserGen.Parsing
                 this.callbacks = callbacks;
             }
 
-            public Option<T> Transform(Node root)
-                 => new ForestToParseTreeIntl(callbacks).Transform(root);
+            public Option<T> Transform(Node root, CancellationToken cancellationToken)
+                 => new ForestToParseTreeIntl(callbacks).Transform(root, cancellationToken);
 
             public abstract record ParseNode();
 
@@ -43,10 +44,10 @@ namespace DarkLink.ParserGen.Parsing
                     this.callbacks = callbacks;
                 }
 
-                public new Option<T> Transform(Node root)
+                public new Option<T> Transform(Node root, CancellationToken cancellationToken)
 #pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
 #pragma warning disable CS8603 // Possible null reference return.
-                    => base.Transform(root).Map<T>(node => (T)((ParseLeaf)node).Value);
+                    => base.Transform(root, cancellationToken).Map<T>(node => (T)((ParseLeaf)node).Value);
 
 #pragma warning restore CS8603 // Possible null reference return.
 #pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.

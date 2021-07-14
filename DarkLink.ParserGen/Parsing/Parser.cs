@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 
 namespace DarkLink.ParserGen.Parsing
 {
@@ -17,10 +18,10 @@ namespace DarkLink.ParserGen.Parsing
             forestToParseTree = new(callbacks);
         }
 
-        public Either<T?, IEnumerable<SyntaxError<TT>>> Parse(IReadOnlyList<Token<TT>> tokens)
+        public Either<T?, IEnumerable<SyntaxError<TT>>> Parse(IReadOnlyList<Token<TT>> tokens, CancellationToken cancellationToken = default)
         {
-            var result = parser.Parse(tokens);
-            return result.MapLeft(solution => forestToParseTree.Transform(solution).GetValueOrDefault());
+            var result = parser.Parse(tokens, cancellationToken);
+            return result.MapLeft(solution => forestToParseTree.Transform(solution, cancellationToken).GetValueOrDefault());
         }
     }
 }

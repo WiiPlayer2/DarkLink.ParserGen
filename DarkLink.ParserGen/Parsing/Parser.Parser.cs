@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 
 namespace DarkLink.ParserGen.Parsing
 {
@@ -19,8 +20,9 @@ namespace DarkLink.ParserGen.Parsing
                 this.grammar = grammar;
             }
 
-            public Either<Node, IEnumerable<SyntaxError<TT>>> Parse(IReadOnlyList<Token<TT>> tokens)
+            public Either<Node, IEnumerable<SyntaxError<TT>>> Parse(IReadOnlyList<Token<TT>> tokens, CancellationToken cancellationToken)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var inputLength = tokens.Count;
                 var itemSets = Enumerable.Repeat(0, inputLength + 1)
                     .Select(_ => new OrderedSet<EarleyItem>())
@@ -31,11 +33,13 @@ namespace DarkLink.ParserGen.Parsing
 
                 foreach (var production in grammar.Productions.Where(p => p.Left == grammar.Start))
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     CheckWordAndItem(production.Right, 0, new(new(production, 0), 0, null), itemSets[0], null, Q_);
                 }
 
                 for (var i = 0; i <= inputLength; i++)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     var H = new Dictionary<Symbol, BranchNode>();
                     var R = new HashSet<EarleyItem>(itemSets[i]);
                     var Q = Q_;
@@ -43,6 +47,7 @@ namespace DarkLink.ParserGen.Parsing
 
                     while (!R.IsEmpty())
                     {
+                        cancellationToken.ThrowIfCancellationRequested();
                         var item = R.Remove();
 
                         if (!item.LR0.IsFinished)
@@ -101,6 +106,7 @@ namespace DarkLink.ParserGen.Parsing
                 {
                     foreach (var production in grammar.Productions.Where(p => p.Left == item.LR0.Current))
                     {
+                        cancellationToken.ThrowIfCancellationRequested();
                         var newItem = new EarleyItem(new(production, 0), i, null);
                         CheckWordAndItem(production.Right, i, newItem, itemSets[i], R, Q);
                     }
@@ -146,6 +152,7 @@ namespace DarkLink.ParserGen.Parsing
 
                     foreach (var otherItem in itemSets[item.Start].Where(o => (!o.LR0.IsFinished && o.LR0.Current == item.LR0.Production.Left)))
                     {
+                        cancellationToken.ThrowIfCancellationRequested();
                         var y = (BranchNode)MakeNode(otherItem.LR0.Step(), otherItem.Start, i, otherItem.Node, itemNode, nodeCache);
                         var delta = otherItem.LR0.Production.Right.Symbols.Skip(otherItem.LR0.Position + 1).ToArray();
                         var newItem = new EarleyItem(otherItem.LR0.Step(), otherItem.Start, y);
@@ -161,6 +168,7 @@ namespace DarkLink.ParserGen.Parsing
 
                     while (!Q.IsEmpty())
                     {
+                        cancellationToken.ThrowIfCancellationRequested();
                         var item = Q.Remove(o => o.LR0.Current == tokens[i].Symbol);
                         var y = MakeNode(item.LR0.Step(), item.Start, i + 1, item.Node, v, nodeCache);
                         var beta = item.LR0.Production.Right.Symbols.Skip(item.LR0.Position + 1).ToArray();

@@ -36,8 +36,8 @@ namespace DarkLink.ParserGen.Formats
             }
 
             var text = sourceText.ToString();
-            var tokens = lexer.Lex(text).ToList();
-            var result = parser.Parse(tokens);
+            var tokens = lexer.Lex(text, context.CancellationToken).ToList();
+            var result = parser.Parse(tokens, context.CancellationToken);
             return result.Match(syntax =>
             {
                 if (syntax is null)

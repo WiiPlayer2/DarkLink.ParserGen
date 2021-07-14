@@ -39,16 +39,16 @@ namespace DarkLink.ParserGen
                 parser = new(Grammar, callbacks);
             }}
 
-            public Either<T?, IEnumerable<SyntaxError<Terminals>>> Parse(string input)
-                => Parse(new StringReader(input));
+            public Either<T?, IEnumerable<SyntaxError<Terminals>>> Parse(string input, CancellationToken cancellationToken = default)
+                => Parse(new StringReader(input), cancellationToken);
 
-            public Either<T?, IEnumerable<SyntaxError<Terminals>>> Parse(Stream stream)
-                => Parse(new StreamReader(stream));
+            public Either<T?, IEnumerable<SyntaxError<Terminals>>> Parse(Stream stream, CancellationToken cancellationToken = default)
+                => Parse(new StreamReader(stream), cancellationToken);
 
-            public Either<T?, IEnumerable<SyntaxError<Terminals>>> Parse(TextReader reader)
+            public Either<T?, IEnumerable<SyntaxError<Terminals>>> Parse(TextReader reader, CancellationToken cancellationToken = default)
             {{
                 var tokens = lexer.Lex(reader).ToList();
-                return parser.Parse(tokens);
+                return parser.Parse(tokens, cancellationToken);
             }}
         }}");
         }

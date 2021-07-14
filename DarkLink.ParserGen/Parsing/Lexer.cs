@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 
 namespace DarkLink.ParserGen.Parsing
 {
@@ -19,14 +20,14 @@ namespace DarkLink.ParserGen.Parsing
             this.ignoreUndefined = ignoreUndefined;
         }
 
-        public IEnumerable<Token<TT>> Lex(string input)
-            => new Enumerable(() => new Lexing(this, input));
+        public IEnumerable<Token<TT>> Lex(string input, CancellationToken cancellationToken = default)
+            => new Enumerable(() => new Lexing(this, input, cancellationToken));
 
-        public IEnumerable<Token<TT>> Lex(Stream stream)
-            => new Enumerable(() => new Lexing(this, stream));
+        public IEnumerable<Token<TT>> Lex(Stream stream, CancellationToken cancellationToken = default)
+            => new Enumerable(() => new Lexing(this, stream, cancellationToken));
 
-        public IEnumerable<Token<TT>> Lex(TextReader reader)
-            => new Enumerable(() => new Lexing(this, reader));
+        public IEnumerable<Token<TT>> Lex(TextReader reader, CancellationToken cancellationToken = default)
+            => new Enumerable(() => new Lexing(this, reader, cancellationToken));
 
         private class Enumerable : IEnumerable<Token<TT>>
         {
@@ -44,6 +45,8 @@ namespace DarkLink.ParserGen.Parsing
 
         private class Lexing : IEnumerator<Token<TT>>
         {
+            private readonly CancellationToken cancellationToken;
+
             private readonly Lexer<TT> lexer;
 
             private readonly TextReader reader;
@@ -52,16 +55,17 @@ namespace DarkLink.ParserGen.Parsing
 
             private string? input;
 
-            public Lexing(Lexer<TT> lexer, string input)
-                : this(lexer, new StringReader(input)) { }
+            public Lexing(Lexer<TT> lexer, string input, CancellationToken cancellationToken)
+                : this(lexer, new StringReader(input), cancellationToken) { }
 
-            public Lexing(Lexer<TT> lexer, Stream stream)
-                : this(lexer, new StreamReader(stream)) { }
+            public Lexing(Lexer<TT> lexer, Stream stream, CancellationToken cancellationToken)
+                : this(lexer, new StreamReader(stream), cancellationToken) { }
 
-            public Lexing(Lexer<TT> lexer, TextReader reader)
+            public Lexing(Lexer<TT> lexer, TextReader reader, CancellationToken cancellationToken)
             {
                 this.lexer = lexer;
                 this.reader = reader;
+                this.cancellationToken = cancellationToken;
                 Current = new(null, string.Empty, -1);
             }
 
@@ -77,6 +81,8 @@ namespace DarkLink.ParserGen.Parsing
 
             public bool MoveNext()
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 input ??= reader.ReadToEnd();
                 if (currentIndex == input.Length)
                     return false;

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 
 namespace DarkLink.ParserGen.Parsing
 {
@@ -15,12 +16,12 @@ namespace DarkLink.ParserGen.Parsing
 
             private readonly Stack<Node> nodeStack = new();
 
-            public Option<S> Transform(Node root)
+            public Option<S> Transform(Node root, CancellationToken cancellationToken)
             {
                 var resultNode = new ResultNode();
                 nodeStack.Push(resultNode);
                 data[resultNode] = new();
-                Visit(root);
+                Visit(root, cancellationToken);
                 Debug.Assert(data[resultNode].Count <= 1);
                 if (data[resultNode].Count > 0)
                     return data[resultNode][0];

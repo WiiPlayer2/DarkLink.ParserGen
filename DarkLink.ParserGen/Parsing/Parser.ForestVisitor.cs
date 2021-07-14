@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 namespace DarkLink.ParserGen.Parsing
 {
@@ -14,9 +15,9 @@ namespace DarkLink.ParserGen.Parsing
                 this.onlyVisitOnce = onlyVisitOnce;
             }
 
-            public void Visit(Node node)
+            public void Visit(Node node, CancellationToken cancellationToken)
             {
-                Visit(node, new(), new(), new());
+                Visit(node, new(), new(), new(), cancellationToken);
             }
 
             protected virtual void OnCycle(Node node, IReadOnlyList<Node> path)
@@ -45,8 +46,10 @@ namespace DarkLink.ParserGen.Parsing
             {
             }
 
-            private void Visit(Node node, HashSet<Node> visited, HashSet<Node> visiting, Stack<Node> path)
+            private void Visit(Node node, HashSet<Node> visited, HashSet<Node> visiting, Stack<Node> path, CancellationToken cancellationToken)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 if (node is TerminalNode terminalNode)
                 {
                     VisitTerminalNode(terminalNode);
@@ -74,7 +77,10 @@ namespace DarkLink.ParserGen.Parsing
                 };
 
                 foreach (var nextNode in nextNodes)
-                    Visit(nextNode, visited, visiting, path);
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    Visit(nextNode, visited, visiting, path, cancellationToken);
+                }
 
                 switch (node)
                 {
