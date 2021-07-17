@@ -26,7 +26,7 @@ namespace DarkLink.ParserGen
             {
                 var ruleCode = token.Rule switch
                 {
-                    RegexRule regexRule => $"new Lexer<Terminals>.RegexRule(new Regex({SymbolDisplay.FormatLiteral(regexRule.Regex, true)}))",
+                    RegexRule regexRule => $"new Lexer<Terminals>.RegexRule(new Regex({SymbolDisplay.FormatLiteral(regexRule.Regex, true)}, RegexOptions.Singleline))",
                     LiteralRule literalRule => $"new Lexer<Terminals>.LiteralRule({SymbolDisplay.FormatLiteral(literalRule.Literal, true)})",
                     _ => throw new NotSupportedException(),
                 };
