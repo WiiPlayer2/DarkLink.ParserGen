@@ -1,4 +1,0 @@
-﻿# namespace DemoApp.Sub
-# start S
-
-<S> ::= "a" <S> "a" | "b" <S> "b" | ""

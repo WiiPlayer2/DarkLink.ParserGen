@@ -1,0 +1,7 @@
+﻿$namespace="DemoApp";
+$start="Start";
+
+Whitespace = ? 0x20 ?;
+Letter = ? /[A-Za-z]/ ?;
+OptWS = { Whitespace };
+Start = OptWS, Letter, OptWS, OptWS, Letter, OptWS;
