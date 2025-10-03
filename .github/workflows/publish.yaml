@@ -1,0 +1,23 @@
+name: Publish nuget
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  publish_nuget:
+    name: Publish nuget
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: cachix/install-nix-action@v27
+      - name: Publish nuget package
+        run: nix run .#ci_publish
+        env:
+          # NUGET_REPO: ${{ secrets.PRIVATE_NUGET_REPO }}
+          # NUGET_APIKEY: ${{ secrets.PRIVATE_NUGET_APIKEY }}
+          NUGET_REPO: ${{ secrets.PUBLIC_NUGET_REPO }}
+          NUGET_APIKEY: ${{ secrets.PUBLIC_NUGET_APIKEY }}
